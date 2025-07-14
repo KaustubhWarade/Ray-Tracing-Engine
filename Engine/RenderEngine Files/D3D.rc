@@ -1,0 +1,6 @@
+#include <Windows.h>
+
+#include "D3D.h"
+
+MYICON ICON MyIcon64.ico
+

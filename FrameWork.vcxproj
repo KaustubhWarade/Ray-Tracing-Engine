@@ -1,0 +1,228 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{24faaf00-8826-4356-bb53-a112793c69ac}</ProjectGuid>
+    <RootNamespace>FrameWork</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>RenderingEngine</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <OpenMPSupport>true</OpenMPSupport>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="TempEngine\RenderEngine Files\D3D.cpp" />
+    <ClCompile Include="TempEngine\RenderEngine Files\RenderEngine.cpp" />
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGuiHelper.cpp" />
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGui\imgui.cpp" />
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGui\imgui_demo.cpp" />
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGui\imgui_draw.cpp" />
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGui\imgui_impl_dx12.cpp" />
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGui\imgui_impl_win32.cpp" />
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGui\imgui_tables.cpp" />
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGui\imgui_widgets.cpp" />
+    <ClCompile Include="TempEngine\RenderEngine Files\render.cpp" />
+    <ClCompile Include="Applications\Application.cpp" />
+    <ClCompile Include="Applications\SceneOne\SceneOne.cpp" />
+    <ClCompile Include="TempEngine\CoreHelper Files\Camera.cpp" />
+    <ClCompile Include="TempEngine\CoreHelper Files\CommonFunction.cpp" />
+    <ClCompile Include="TempEngine\CoreHelper Files\DDSTextureLoader12.cpp" />
+    <ClCompile Include="TempEngine\CoreHelper Files\GeoMetryHelper.cpp" />
+    <ClCompile Include="TempEngine\CoreHelper Files\Image.cpp" />
+    <ClCompile Include="TempEngine\CoreHelper Files\PipelineBuilderHelper.cpp" />
+    <ClCompile Include="TempEngine\CoreHelper Files\Random.cpp" />
+    <ClCompile Include="TempEngine\CoreHelper Files\RootSignitureHelper.cpp" />
+    <ClCompile Include="TempEngine\CoreHelper Files\ShaderHelper.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_barriers.h" />
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_check_feature_support.h" />
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_core.h" />
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_default.h" />
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_pipeline_state_stream.h" />
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_property_format_table.h" />
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_render_pass.h" />
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_resource_helpers.h" />
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_root_signature.h" />
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_state_object.h" />
+    <ClInclude Include="TempEngine\RenderEngine Files\D3D.h" />
+    <ClInclude Include="TempEngine\RenderEngine Files\global.h" />
+    <ClInclude Include="TempEngine\RenderEngine Files\RenderEngine.h" />
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGuiHelper.h" />
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imconfig.h" />
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imgui.h" />
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imgui_impl_dx12.h" />
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imgui_impl_win32.h" />
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imgui_internal.h" />
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imstb_rectpack.h" />
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imstb_textedit.h" />
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imstb_truetype.h" />
+    <ClInclude Include="TempEngine\RenderEngine Files\Timer.h" />
+    <ClInclude Include="Applications\SceneOne\SceneOne.h" />
+    <ClInclude Include="Applications\Application.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\Camera.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\CommonFunction.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\DDSTextureLoader12.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_barriers.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_check_feature_support.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_core.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_default.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_pipeline_state_stream.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_property_format_table.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_render_pass.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_resource_helpers.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_root_signature.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_state_object.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\GeoMetryHelper.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\Helper.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\Image.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\PipelineBuilderHelper.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\Random.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\Ray.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\RootSignitureHelper.h" />
+    <ClInclude Include="TempEngine\CoreHelper Files\ShaderHelper.h" />
+    <ClInclude Include="TempEngine\RenderEngine Files\win32Window.h" />
+    <ClInclude Include="TempEngine\IApplication.h" />
+    <ClInclude Include="Resources\Sphere.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Applications\SceneOne\FinalTexturePShader.hlsl">
+      <FileType>Document</FileType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Applications\SceneOne\FinalTextureVShader.hlsl">
+      <FileType>Document</FileType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Applications\SceneOne\RayTracerCS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="TempEngine\RenderEngine Files\D3D.rc" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

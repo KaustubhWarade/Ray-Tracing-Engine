@@ -1,0 +1,256 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="MainSource">
+      <UniqueIdentifier>{2aee1e66-4e60-40c6-b1b9-d8ad108b6333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="CoreHelper Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Model and resources Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="ApplicationFiles">
+      <UniqueIdentifier>{37d689c1-f5f6-4acc-a9e4-5ba2e6270f0c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ApplicationFiles\ImGui">
+      <UniqueIdentifier>{f435d939-a066-45e9-b38c-7b1b244718eb}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="TempEngine\RenderEngine Files\RenderEngine.cpp">
+      <Filter>ApplicationFiles</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\CoreHelper Files\CommonFunction.cpp">
+      <Filter>CoreHelper Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\CoreHelper Files\GeoMetryHelper.cpp">
+      <Filter>CoreHelper Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\CoreHelper Files\PipelineBuilderHelper.cpp">
+      <Filter>CoreHelper Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\CoreHelper Files\RootSignitureHelper.cpp">
+      <Filter>CoreHelper Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\CoreHelper Files\ShaderHelper.cpp">
+      <Filter>CoreHelper Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGui\imgui.cpp">
+      <Filter>ApplicationFiles\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGui\imgui_demo.cpp">
+      <Filter>ApplicationFiles\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGui\imgui_draw.cpp">
+      <Filter>ApplicationFiles\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGui\imgui_impl_dx12.cpp">
+      <Filter>ApplicationFiles\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGui\imgui_impl_win32.cpp">
+      <Filter>ApplicationFiles\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGui\imgui_tables.cpp">
+      <Filter>ApplicationFiles\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGui\imgui_widgets.cpp">
+      <Filter>ApplicationFiles\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\RenderEngine Files\render.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\RenderEngine Files\ImGuiHelper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Applications\SceneOne\SceneOne.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Applications\Application.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\CoreHelper Files\DDSTextureLoader12.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\CoreHelper Files\Image.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\CoreHelper Files\Camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\CoreHelper Files\Random.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TempEngine\RenderEngine Files\D3D.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Resources\Sphere.h">
+      <Filter>Model and resources Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\RenderEngine Files\RenderEngine.h">
+      <Filter>ApplicationFiles</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\RenderEngine Files\Timer.h">
+      <Filter>ApplicationFiles</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\CommonFunction.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\GeoMetryHelper.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\PipelineBuilderHelper.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\RootSignitureHelper.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\ShaderHelper.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imgui.h">
+      <Filter>ApplicationFiles\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imgui_impl_dx12.h">
+      <Filter>ApplicationFiles\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imgui_impl_win32.h">
+      <Filter>ApplicationFiles\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imgui_internal.h">
+      <Filter>ApplicationFiles\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imstb_rectpack.h">
+      <Filter>ApplicationFiles\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imstb_textedit.h">
+      <Filter>ApplicationFiles\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imstb_truetype.h">
+      <Filter>ApplicationFiles\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGui\imconfig.h">
+      <Filter>ApplicationFiles\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\RenderEngine Files\ImGuiHelper.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Applications\SceneOne\SceneOne.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Applications\Application.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\Helper.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\DDSTextureLoader12.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_barriers.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_check_feature_support.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_core.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_default.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_pipeline_state_stream.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_property_format_table.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_render_pass.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_resource_helpers.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_root_signature.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\MyProject\05_D3D12\01_EnvironmentSetup\extraPackages\d3dx12_state_object.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_barriers.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_check_feature_support.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_core.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_default.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_pipeline_state_stream.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_property_format_table.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_render_pass.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_resource_helpers.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_root_signature.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\extraPackages\d3dx12_state_object.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\Image.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\Camera.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\Ray.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\CoreHelper Files\Random.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\RenderEngine Files\D3D.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\RenderEngine Files\global.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\RenderEngine Files\win32Window.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TempEngine\IApplication.h">
+      <Filter>CoreHelper Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Applications\SceneOne\FinalTexturePShader.hlsl" />
+    <FxCompile Include="Applications\SceneOne\FinalTextureVShader.hlsl" />
+    <FxCompile Include="Applications\SceneOne\RayTracerCS.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="TempEngine\RenderEngine Files\D3D.rc">
+      <Filter>Model and resources Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>

@@ -61,6 +61,29 @@ inline HRESULT LogAndExecuteCompile(HRESULT hr, IDxcBlobUtf8* errorBlob, const c
     }
     return hr;
 }
+inline HRESULT LogAndExecuteCompile(HRESULT hr, ID3DBlob* errorBlob, const char* funcName, const char* file, int line)
+{
+    if (gpFile)
+    {
+        if (FAILED(hr))
+        {
+            fprintf(gpFile, "FAILED: %s\nFile: %s\nLine: %d\nHRESULT: 0x%08X\n",
+                funcName, file, line, hr);
+
+            if (errorBlob && errorBlob->GetBufferSize() > 0)
+            {
+                fprintf(gpFile, "Shader Compilation Error:\n%.*s\n\n",
+                    (int)errorBlob->GetBufferSize(),
+                    (const char*)errorBlob->GetBufferPointer());
+            }
+        }
+        else
+        {
+            fprintf(gpFile, "SUCCEEDED: %s\n", funcName);
+        }
+    }
+    return hr;
+}
 
 #define EXECUTE_AND_LOG(expr) LogAndExecute((expr), #expr, __FILE__, __LINE__)
 #define EXECUTE_AND_LOG_RETURN(expr)                          \

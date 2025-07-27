@@ -85,8 +85,8 @@ HRESULT RenderEngine ::initialize()
 		return 0;
 	}
 
-	EXECUTE_AND_LOG_RETURN(m_cbvSrvUavAllocator.Create(m_device.Get()));
-	m_cbvSrvUavAllocator.GetHeap()->SetName(L"Master CBV/SRV/UAV Heap");
+	//EXECUTE_AND_LOG_RETURN(m_cbvSrvUavAllocator.Create(m_device.Get()));
+	//m_cbvSrvUavAllocator.GetHeap()->SetName(L"Master CBV/SRV/UAV Heap");
 
 	EXECUTE_AND_LOG_RETURN(m_pApplication->InitializeApplication(this));
 

@@ -25,10 +25,13 @@
     <ClCompile Include="CoreHelper Files\DescriptorAllocator.cpp" />
     <ClCompile Include="CoreHelper Files\GeoMetryHelper.cpp" />
     <ClCompile Include="CoreHelper Files\Image.cpp" />
+    <ClCompile Include="CoreHelper Files\Model Loader\ModelLoader.cpp" />
     <ClCompile Include="CoreHelper Files\PipelineBuilderHelper.cpp" />
     <ClCompile Include="CoreHelper Files\Random.cpp" />
+    <ClCompile Include="CoreHelper Files\ResourceManager.cpp" />
     <ClCompile Include="CoreHelper Files\RootSignitureHelper.cpp" />
     <ClCompile Include="CoreHelper Files\ShaderHelper.cpp" />
+    <ClCompile Include="CoreHelper Files\Texture.cpp" />
     <ClCompile Include="RenderEngine Files\D3D.cpp" />
     <ClCompile Include="RenderEngine Files\ImGuiHelper.cpp" />
     <ClCompile Include="RenderEngine Files\ImGui\imgui.cpp" />
@@ -60,6 +63,13 @@
     <ClInclude Include="CoreHelper Files\GeoMetryHelper.h" />
     <ClInclude Include="CoreHelper Files\Helper.h" />
     <ClInclude Include="CoreHelper Files\Image.h" />
+    <ClInclude Include="CoreHelper Files\Model Loader\ModelLoader.h" />
+    <ClInclude Include="CoreHelper Files\ResourceManager.h" />
+    <ClInclude Include="CoreHelper Files\Texture.h" />
+    <ClInclude Include="CoreHelper Files\ThirdParty\json.hpp" />
+    <ClInclude Include="CoreHelper Files\ThirdParty\stb_image.h" />
+    <ClInclude Include="CoreHelper Files\ThirdParty\stb_image_write.h" />
+    <ClInclude Include="CoreHelper Files\ThirdParty\tiny_gltf.h" />
     <ClInclude Include="CoreHelper Files\PipelineBuilderHelper.h" />
     <ClInclude Include="CoreHelper Files\Random.h" />
     <ClInclude Include="CoreHelper Files\Ray.h" />
@@ -201,7 +211,7 @@ xcopy /Y /D "$(ProjectDir)bin\dxil.dll" "$(OutDir)"</Command>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>

@@ -1,38 +1,32 @@
 #include "Image.h"
 #include "CommonFunction.h"
 #include "extraPackages/d3dx12.h"
+#include "ResourceManager.h"
 
-void Image::Initialize(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
+
+Image::Image() {}
+
+Image::~Image()
 {
-	m_device = device;
-	m_cmdList= cmdList;
+	delete[] m_pixelData;
+	m_pixelData = nullptr;
+
+	delete[] m_accumulateData;
+	m_accumulateData = nullptr;
+
+	m_gpuResource.Reset();
+	m_uploadBuffer.Reset();
 }
 
-//Image::~Image() noexcept
-//{
-//	if (m_data)
-//	{
-//		delete[] m_data;
-//		m_data = nullptr;
-//	}
-//	if (m_accumulateData)
-//	{
-//		delete[] m_accumulateData;
-//		m_accumulateData = nullptr;
-//	}
-//}
-
-HRESULT Image::CreateImageResource(
-	UINT width, UINT height, 
-	D3D12_RESOURCE_STATES startState = D3D12_RESOURCE_STATE_COMMON,
-	DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM,
-	D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE)
+HRESULT Image::Initialize(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, DescriptorAllocator* allocator,
+	UINT width, UINT height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags)
 {
+	m_device = device;
+	m_cmdList = cmdList;
 	m_width = width;
 	m_height = height;
-	m_startState = startState;
-	m_format = format;
 	m_flags = flags;
+	m_format = format;
 
 	D3D12_RESOURCE_DESC texDesc = {};
 	texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -54,11 +48,10 @@ HRESULT Image::CreateImageResource(
 		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&texDesc,
-		m_startState,
+		D3D12_RESOURCE_STATE_COMMON,
 		nullptr,
-		IID_PPV_ARGS(&m_imageGPU)));
-	m_imageGPU->SetName(L"FinalTextureGPU Resource");
-	m_currentResourceState = m_startState;
+		IID_PPV_ARGS(&m_gpuResource)));
+	m_gpuResource->SetName(L"FinalTextureGPU Resource");
 
 	UINT64 uploadSize = 0;
 	// D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
@@ -85,12 +78,33 @@ HRESULT Image::CreateImageResource(
 		&uploadDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&m_imageUpload)));
-	m_imageUpload->SetName(L"FinalTextureUpload Resource");
+		IID_PPV_ARGS(&m_uploadBuffer)));
+	m_uploadBuffer->SetName(L"FinalTextureUpload Resource");
 
-	m_data = new uint32_t[width * height];
-	m_accumulateData = new XMFLOAT4[width * height];
+	if (m_pixelData) delete[] m_pixelData;
+	m_pixelData = new uint32_t[width * height];
+	ZeroMemory(m_pixelData, width * height * sizeof(uint32_t));
+	m_accumulateData = new XMFLOAT4[m_width * m_height];
+	ClearAccumulationData();
 
+	auto resourceManager = ResourceManager::Get();
+	// srv and uav allocation.
+	m_srvAllocation = resourceManager->m_cbvSrvUavAllocator.Allocate(1);
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = texDesc.Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Texture2D.MipLevels = 1;
+	m_device->CreateShaderResourceView(m_gpuResource.Get(), &srvDesc, m_srvAllocation.CpuHandle);
+
+	if (m_flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+	{
+		m_uavAllocation = resourceManager->m_cbvSrvUavAllocator.Allocate(1);
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+		uavDesc.Format = texDesc.Format;
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		m_device->CreateUnorderedAccessView(m_gpuResource.Get(), nullptr, &uavDesc, m_uavAllocation.CpuHandle);
+	}
 	return S_OK;
 }
 
@@ -100,188 +114,58 @@ void Image::Resize(UINT newWidth, UINT newHeight)
 		return; // No need to recreate
 
 	// Release old resources
-	m_imageGPU.Reset();
-	m_imageUpload.Reset();
+	m_gpuResource.Reset();
+	m_uploadBuffer.Reset();
 
-	if (m_data)
+	if (m_pixelData)
 	{
-		delete[] m_data;
-		m_data = nullptr;
-	}
-	if (m_accumulateData)
-	{
-		delete[] m_accumulateData;
-		m_accumulateData = nullptr;
+		delete[] m_pixelData;
+		m_pixelData = nullptr;
 	}
 
 	// Recreate the texture with new size
-	CreateImageResource(newWidth, newHeight, m_startState, m_format, m_flags);
+	Initialize(m_device, m_cmdList, m_allocator, newWidth, newHeight, m_format, m_flags);
 }
 
-void Image::SetData(const uint32_t *data)
+void Image::ClearAccumulationData()
 {
-	uint8_t *mapped = nullptr;
-	D3D12_RANGE readRange = {0, 0};
-	m_imageUpload->Map(0, &readRange, reinterpret_cast<void **>(&mapped));
-	// uint32_t* dst = reinterpret_cast<uint32_t*>(mapped);
-	UINT rowPitchPixels = m_footprint.Footprint.RowPitch / sizeof(uint32_t);
-	TransitionResource(m_cmdList, m_imageGPU.Get(),
-		m_currentResourceState,
-							 D3D12_RESOURCE_STATE_COPY_DEST);
-	m_currentResourceState = D3D12_RESOURCE_STATE_COPY_DEST;
+	if (m_accumulateData)
+	{
+		memset(m_accumulateData, 0, m_width * m_height * sizeof(XMFLOAT4));
+	}
+}
+
+void Image::CommitChanges()
+{
+	uint8_t* pData;
+	m_uploadBuffer->Map(0, nullptr, reinterpret_cast<void**>(&pData));
+
+	// Copy data from our CPU buffer to the upload buffer, respecting the row pitch
 	for (UINT y = 0; y < m_height; ++y)
 	{
 		memcpy(
-			mapped + y * m_footprint.Footprint.RowPitch,
-			data + y * m_width,
-			m_width * sizeof(uint32_t));
+			pData + y * m_footprint.Footprint.RowPitch,
+			m_pixelData + y * m_width,
+			m_width * sizeof(uint32_t)
+		);
 	}
-	m_imageUpload->Unmap(0, nullptr);
+	m_uploadBuffer->Unmap(0, nullptr);
+
+	// Transition the destination resource to be ready for the copy
+	TransitionResource(m_cmdList, m_gpuResource.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
 
 	D3D12_TEXTURE_COPY_LOCATION dst = {};
-	dst.pResource = m_imageGPU.Get();
+	dst.pResource = m_gpuResource.Get();
 	dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 	dst.SubresourceIndex = 0;
 
 	D3D12_TEXTURE_COPY_LOCATION src = {};
-	src.pResource = m_imageUpload.Get();
+	src.pResource = m_uploadBuffer.Get();
 	src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 	src.PlacedFootprint = m_footprint;
 
 	m_cmdList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 
-	TransitionResource(m_cmdList, m_imageGPU.Get(),
-		m_currentResourceState,
-							 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	m_currentResourceState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	// Transition the resource to a shader-readable state
+	TransitionResource(m_cmdList, m_gpuResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
-
-
-HRESULT Texture::UpdateSubresources(
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	UINT64 intermediateOffset,
-	UINT firstSubresource)
-{
-	UINT numSubresources = static_cast<UINT>(m_texturesubresources.size());
-	std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts(numSubresources);
-	std::vector<UINT> numRows(numSubresources);
-	std::vector<UINT64> rowSizesInBytes(numSubresources);
-
-	UINT64 totalBytes = 0;
-	D3D12_RESOURCE_DESC desc = m_ResourceGPU->GetDesc();
-
-	device->GetCopyableFootprints(
-		&desc,
-		firstSubresource,
-		numSubresources,
-		intermediateOffset,
-		layouts.data(),
-		numRows.data(),
-		rowSizesInBytes.data(),
-		&totalBytes);
-
-	// Map upload heap
-	BYTE* mappedData = nullptr;
-	HRESULT hr = m_ResourceUpload->Map(0, nullptr, reinterpret_cast<void**>(&mappedData));
-	if (FAILED(hr))
-		return hr;
-
-	for (UINT i = 0; i < numSubresources; ++i)
-	{
-		BYTE* dstSlice = mappedData + layouts[i].Offset;
-		const BYTE* srcSlice = reinterpret_cast<const BYTE*>(m_texturesubresources[i].pData);
-
-		for (UINT y = 0; y < numRows[i]; ++y)
-		{
-			memcpy(
-				dstSlice + y * layouts[i].Footprint.RowPitch,
-				srcSlice + y * m_texturesubresources[i].RowPitch,
-				rowSizesInBytes[i]);
-		}
-	}
-
-	m_ResourceUpload->Unmap(0, nullptr);
-
-	// Issue copy commands to copy each subresource from upload heap to texture
-	for (UINT i = 0; i < numSubresources; ++i)
-	{
-		D3D12_TEXTURE_COPY_LOCATION dst = {};
-		dst.pResource = m_ResourceGPU.Get();
-		dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-		dst.SubresourceIndex = i + firstSubresource;
-
-		D3D12_TEXTURE_COPY_LOCATION src = {};
-		src.pResource = m_ResourceUpload.Get();
-		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-		src.PlacedFootprint = layouts[i];
-
-		cmdList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
-	}
-
-	return S_OK;
-}
-
-HRESULT Texture::loadTexture(ID3D12Device* pDevice,ID3D12GraphicsCommandList* pCmdList, const wchar_t* filename)
-{
-	HRESULT hr = S_OK;
-
-	hr = DirectX::LoadDDSTextureFromFile(
-		pDevice,
-		filename,
-		m_ResourceGPU.GetAddressOf(),
-		m_textureddsData,
-		m_texturesubresources);
-
-	if (FAILED(hr) || !m_ResourceGPU || m_texturesubresources.empty())
-	{
-		fprintf(gpFile, "LoadDDSTextureFromFile() Failed. HRESULT: 0x%08X\n", hr);
-		return hr;
-	}
-	else
-	{
-		D3D12_RESOURCE_DESC desc = m_ResourceGPU->GetDesc();
-		fprintf(gpFile, "Format: %d, Width: %llu, Height: %u, MipLevels: %d, Dimension: %d\n",
-			desc.Format, desc.Width, desc.Height, desc.MipLevels, desc.Dimension);
-	}
-
-	UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_ResourceGPU.Get(), 0, static_cast<UINT>(m_texturesubresources.size()));
-
-	D3D12_HEAP_PROPERTIES heapProps = {};
-	CreateHeapProperties(heapProps, D3D12_HEAP_TYPE_UPLOAD);
-
-	D3D12_RESOURCE_DESC resourceDesc = {};
-	ZeroMemory(&resourceDesc, sizeof(D3D12_RESOURCE_DESC));
-	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resourceDesc.Alignment = 0;
-	resourceDesc.Width = uploadBufferSize; // The size of the buffer in bytes
-	resourceDesc.Height = 1;
-	resourceDesc.DepthOrArraySize = 1;
-	resourceDesc.MipLevels = 1;
-	resourceDesc.Format = DXGI_FORMAT_UNKNOWN;
-	resourceDesc.SampleDesc.Count = 1;
-	resourceDesc.SampleDesc.Quality = 0;
-	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-	EXECUTE_AND_LOG_RETURN(pDevice->CreateCommittedResource(
-		&heapProps,
-		D3D12_HEAP_FLAG_NONE,
-		&resourceDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ, // Initial state for an upload heap
-		nullptr,
-		IID_PPV_ARGS(&m_ResourceUpload)));
-
-	UpdateSubresources(
-		pDevice,
-		pCmdList,
-		0, 0);
-
-	TransitionResource(
-		pCmdList,
-		m_ResourceGPU.Get(),
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
-
-}
-

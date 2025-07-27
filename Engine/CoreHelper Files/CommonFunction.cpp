@@ -2,6 +2,7 @@
 
 #include "CommonFunction.h"
 #include "../RenderEngine Files/global.h"
+#include "../RenderEngine Files/RenderEngine.h"
 
 
 HRESULT CreateDefaultBuffer(
@@ -12,6 +13,12 @@ HRESULT CreateDefaultBuffer(
 	Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer,
 	Microsoft::WRL::ComPtr<ID3D12Resource>& defaultBuffer)
 {
+	if (dataSize == 0)
+	{
+		uploadBuffer.Reset();  
+		defaultBuffer.Reset(); 
+		return S_OK; 
+	}
 
 	D3D12_RESOURCE_DESC resourceDesc = {};
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -112,4 +119,36 @@ void CreateHeapProperties(D3D12_HEAP_PROPERTIES& heap, D3D12_HEAP_TYPE heapType)
 	heap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
 	heap.CreationNodeMask = 1;
 	heap.VisibleNodeMask = 1;
+}
+
+void RenderModel(ID3D12GraphicsCommandList* cmdList, Model* model)
+{
+	if (!model) return;
+
+	// Iterate over each mesh in the model.
+	for (auto& mesh : model->Meshes)
+	{
+		// Set the vertex and index buffers for this mesh.
+		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		D3D12_VERTEX_BUFFER_VIEW vertexBufferView = mesh.GPUData.VertexBufferView();
+		cmdList->IASetVertexBuffers(0, 1, &vertexBufferView);
+
+		D3D12_INDEX_BUFFER_VIEW indexBufferView = mesh.GPUData.IndexBufferView();
+		cmdList->IASetIndexBuffer(&indexBufferView);
+
+		// Iterate over the primitives (sub-meshes). Each is a separate draw call.
+		for (auto& primitive : mesh.Primitives)
+		{
+			// The current shader doesn't use per-primitive material data,
+			// so we just issue the draw call. The material color is ignored.
+
+			cmdList->DrawIndexedInstanced(
+				primitive.IndexCount,
+				1,
+				primitive.StartIndexLocation,
+				primitive.BaseVertexLocation,
+				0
+			);
+		}
+	}
 }

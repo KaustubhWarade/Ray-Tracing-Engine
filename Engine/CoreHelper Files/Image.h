@@ -2,57 +2,50 @@
 #include "../RenderEngine Files/global.h"
 #include "GeoMetryHelper.h"
 #include "DDSTextureLoader12.h"
+#include "DescriptorAllocator.h"
 
+
+// A manager class for a dynamic, CPU-writable image resource.
+// Use this for render targets, procedural generation, ray tracing output, etc.
 class Image
 {
-	//~Image() noexcept;
 public:
-	void Initialize(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList);
+	Image();
+	~Image();
 
-	HRESULT CreateImageResource(
-		UINT width,
-		UINT height,
-		D3D12_RESOURCE_STATES startState,
-		DXGI_FORMAT format,
-		D3D12_RESOURCE_FLAGS flags);
-	void SetData(const uint32_t* data);
+	HRESULT Initialize(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, DescriptorAllocator* allocator,
+		UINT width, UINT height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	void CommitChanges();
 
 	void Resize(UINT width, UINT height);
 
-	UINT m_width = 800;
-	UINT m_height = 600;
-	uint32_t* m_data = nullptr;
-	XMFLOAT4* m_accumulateData = nullptr;
+	void ClearAccumulationData();
 
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_footprint;
-	ComPtr<ID3D12Resource> m_imageGPU;
-	ComPtr<ID3D12Resource> m_imageUpload;
-	D3D12_RESOURCE_STATES m_currentResourceState;
+	ID3D12Resource* GetResource() const { return m_gpuResource.Get(); }
+	DescriptorAllocation GetSrvHandle() const { return m_srvAllocation; }
+	DescriptorAllocation GetUavHandle() const { return m_uavAllocation; }
+
+	uint32_t* GetPixelBuffer() { return m_pixelData; }
+	XMFLOAT4* GetAccumulationBuffer() { return m_accumulateData; }
+	UINT GetWidth() const { return m_width; }
+	UINT GetHeight() const { return m_height; }
+
 private:
 	ID3D12Device* m_device;
 	ID3D12GraphicsCommandList* m_cmdList;
-	D3D12_RESOURCE_STATES m_startState = D3D12_RESOURCE_STATE_COMMON;
-	DXGI_FORMAT m_format = DXGI_FORMAT_UNKNOWN;
-	D3D12_RESOURCE_FLAGS m_flags = D3D12_RESOURCE_FLAG_NONE;
-};
+	DescriptorAllocator* m_allocator = nullptr;
 
-class Texture
-{
-public:
-	HRESULT loadTexture(ID3D12Device* pDevice, 
-		ID3D12GraphicsCommandList* pCmdList, 
-		const wchar_t* filename);
-	HRESULT UpdateSubresources(
-		ID3D12Device* device,
-		ID3D12GraphicsCommandList* cmdList,
-		UINT64 intermediateOffset,
-		UINT firstSubresource);
+	uint32_t* m_pixelData = nullptr;
+	XMFLOAT4* m_accumulateData = nullptr;
+	UINT m_width = 0, m_height = 0;
+	D3D12_RESOURCE_FLAGS m_flags;
+	DXGI_FORMAT m_format;
 
-	ComPtr<ID3D12Resource> m_ResourceGPU;
-	ComPtr<ID3D12Resource> m_ResourceUpload;
-	std::unique_ptr<uint8_t[]> m_textureddsData;
-	std::vector<D3D12_SUBRESOURCE_DATA> m_texturesubresources;
-private:
-
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_gpuResource;
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_uploadBuffer;
+	DescriptorAllocation m_srvAllocation;
+	DescriptorAllocation m_uavAllocation;
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_footprint;
 };
 

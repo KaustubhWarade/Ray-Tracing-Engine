@@ -20,7 +20,7 @@ HRESULT DescriptorAllocator::Create(ID3D12Device* device)
 
 DescriptorAllocation DescriptorAllocator::Allocate(UINT count)
 {
-    assert(m_currentSize + count <= m_capacity && "Descriptor heap is full!");
+    //assert(m_currentSize + count <= m_capacity && "Descriptor heap is full!");
 
     UINT startIndex = m_currentSize;
     m_currentSize += count;

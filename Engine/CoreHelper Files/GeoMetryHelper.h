@@ -3,38 +3,30 @@
 #include "../RenderEngine Files/global.h"
 using namespace DirectX;
 
-struct Vertex
-{
-	XMFLOAT3 Pos;
-	XMFLOAT4 Color;
+struct ModelVertex {
+	DirectX::XMFLOAT3 Position;
+	DirectX::XMFLOAT3 Normal;
+	DirectX::XMFLOAT2 TexCoord;
 };
 
 struct GeometryMesh
 {
 	std::wstring name;
 
-	// Microsoft::WRL::ComPtr<ID3DBlob> VertexBufferCPU = nullptr;
-	// Microsoft::WRL::ComPtr<ID3DBlob> ColorBufferCPU = nullptr;
-	// Microsoft::WRL::ComPtr<ID3DBlob> TexCoordBufferCPU = nullptr;
-	// Microsoft::WRL::ComPtr<ID3DBlob> NormalBufferCPU = nullptr;
-	// Microsoft::WRL::ComPtr<ID3DBlob> IndexBufferCPU = nullptr;
-
-	Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferGPU = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> ColorBufferGPU = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> TexCoordBufferGPU = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> NormalBufferGPU = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferGPU = nullptr;
-
 	Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferUploader = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> ColorBufferUploader = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> TexCoordBufferUploader = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> NormalBufferUploader = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferUploader = nullptr;
-
+	Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferGPU = nullptr;
+	UINT VertexCount = 0;
 	UINT VertexByteStride = 0;
 	UINT VertexBufferByteSize = 0;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> TexCoordBufferUploader = nullptr; 
+	Microsoft::WRL::ComPtr<ID3D12Resource> TexCoordBufferGPU = nullptr;
 	UINT TexCoordByteStride = 0;
 	UINT TexCoordBufferByteSize = 0;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferUploader = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferGPU = nullptr;
+	UINT IndexCount = 0;
 	DXGI_FORMAT IndexFormat = DXGI_FORMAT_R16_UINT;
 	UINT IndexBufferByteSize = 0;
 
@@ -75,9 +67,18 @@ HRESULT createGeometryVertexResource(
 	GeometryMesh &Mesh,
 	const void *initData,
 	UINT dataSize);
+
 HRESULT createGeometryTexCoordResource(
 	Microsoft::WRL::ComPtr<ID3D12Device> device,
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> cmdList,
 	GeometryMesh &Mesh,
 	const void *initData,
 	UINT dataSize);
+
+HRESULT createGeometryIndexResource(
+	Microsoft::WRL::ComPtr<ID3D12Device> device,
+	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> cmdList,
+	GeometryMesh &Mesh,
+	const void *initData,
+	UINT dataSize,
+	DXGI_FORMAT indexFormat);

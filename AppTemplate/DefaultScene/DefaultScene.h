@@ -5,6 +5,7 @@
 #include "CoreHelper Files/Image.h"
 #include "CoreHelper Files/PipelineBuilderHelper.h"
 #include "CoreHelper Files/ShaderHelper.h"
+#include "CoreHelper Files/DescriptorAllocator.h"
 #include "RenderEngine Files/global.h"
 
 #include <vector>
@@ -52,7 +53,7 @@ private:
 	};
 
 	ComPtr<ID3D12Resource> m_constantBufferResource;
-	ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
+	DescriptorAllocation m_DescriptorHeapStart;
 	UINT8* m_CBVHeapStartPointer;
 	CBUFFER m_constantBufferData;
 

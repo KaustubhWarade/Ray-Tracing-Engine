@@ -116,15 +116,8 @@ HRESULT DefaultScene::Initialize(RenderEngine* pRenderEngine)
 
 	EXECUTE_AND_LOG_RETURN(m_pRenderEngine->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_finalTexturePSO.PipelineState)));
 
-	// 4. Create Constant Buffer Resources
-	{
-		// Create a shader-visible descriptor heap for the CBV.
-		D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
-		cbvHeapDesc.NumDescriptors = 1;
-		cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		EXECUTE_AND_LOG_RETURN(m_pRenderEngine->GetDevice()->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
-	}
+	m_DescriptorHeapStart = m_pRenderEngine->m_cbvSrvUavAllocator.Allocate(1);
+
 	{
 		// Constant buffers must be 256-byte aligned.
 		const UINT constantBufferSize = (sizeof(CBUFFER) + 255) & ~255;
@@ -157,7 +150,7 @@ HRESULT DefaultScene::Initialize(RenderEngine* pRenderEngine)
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 		cbvDesc.BufferLocation = m_constantBufferResource->GetGPUVirtualAddress();
 		cbvDesc.SizeInBytes = (sizeof(CBUFFER) + 255) & ~255;
-		m_pRenderEngine->GetDevice()->CreateConstantBufferView(&cbvDesc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
+		m_pRenderEngine->GetDevice()->CreateConstantBufferView(&cbvDesc, m_DescriptorHeapStart.CpuHandle);
 
 		// Map the buffer for persistent CPU access; we won't unmap it.
 		D3D12_RANGE readRange;
@@ -266,10 +259,10 @@ void DefaultScene::PopulateCommandList(void)
 	cmdList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	// Set the CBV descriptor heap.
-	ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get() };
+	ID3D12DescriptorHeap* ppHeaps[] = { m_pRenderEngine->GetCbvSrvUavAllocator().GetHeap()};
 	cmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
-	cmdList->SetGraphicsRootDescriptorTable(0, m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetGraphicsRootDescriptorTable(0, m_DescriptorHeapStart.GpuHandle);
 
 	m_constantBufferData.worldMatrix = XMMatrixIdentity();
 	XMMATRIX rotationMatrixX = XMMatrixRotationX(XMConvertToRadians(m_rotationAngle));

@@ -4,6 +4,7 @@
 #include "../CoreHelper Files/Camera.h"
 #include "../IApplication.h"
 #include "../CoreHelper Files/DescriptorAllocator.h"
+#include "../CoreHelper Files/ResourceManager.h"
 
 
 #define FRAMECOUNT 2
@@ -20,7 +21,6 @@ public:
     HRESULT initialize_imgui();
     HRESULT CreateDeviceCommandQueueAndSwapChain(void);
     HRESULT CreateRenderBufferHeaps();
-    HRESULT CreateDescriptorHeap();
 
     HRESULT resize(UINT width, UINT height);
     HRESULT CreateDepthStencilBuffer(UINT width, UINT height);

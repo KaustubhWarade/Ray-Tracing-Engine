@@ -1,5 +1,6 @@
 #pragma once
 #include "GeoMetryHelper.h"
+#include "Model Loader/ModelLoader.h"
 
 
 HRESULT CreateDefaultBuffer(
@@ -18,3 +19,5 @@ void TransitionResource(
 
 
 void CreateHeapProperties(D3D12_HEAP_PROPERTIES& heap, D3D12_HEAP_TYPE heapType);
+
+void RenderModel(ID3D12GraphicsCommandList* cmdList, Model* model);

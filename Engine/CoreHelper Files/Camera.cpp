@@ -8,7 +8,7 @@ Camera::Camera()
 	m_NearClip = 0.1f;
 	m_FarClip = 100.0f;
 	m_ForwardDirection = XMFLOAT3(0, 0, -1);
-	m_Position = XMFLOAT3(0.0f, 0.0f, 7.0f);
+	m_Position = XMFLOAT3(0.0f, 0.0f, 5.0f);
 	m_ForwardDirection = XMFLOAT3(0.0f, 0.0f, -1.0f);
 	m_UpDirection = XMFLOAT3(0.0f, 1.0f, 0.0f);
 	m_ViewportWidth = 800;
@@ -45,21 +45,25 @@ void Camera::OnMouseMove(float x, float y)
 	if (delta.x == 0.0f && delta.y == 0.0f)
 		return;
 
-		float pitchDelta = -delta.y * GetRotationSpeed();
-		float yawDelta = -delta.x * GetRotationSpeed();
-		XMVECTOR forward = XMLoadFloat3(&m_ForwardDirection);
-		XMVECTOR right = XMLoadFloat3(&m_RightDirection);
-		XMVECTOR pitchQuat = XMQuaternionRotationAxis(right, pitchDelta);
-		XMVECTOR yawQuat = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), yawDelta);
+	float pitchDelta = -delta.y * GetRotationSpeed();
+	float yawDelta = -delta.x * GetRotationSpeed();
+	XMVECTOR forward = XMLoadFloat3(&m_ForwardDirection);
+	XMVECTOR right = XMLoadFloat3(&m_RightDirection);
+	XMVECTOR up = XMLoadFloat3(&m_UpDirection);
 
-		XMVECTOR combinedQuat = XMQuaternionMultiply(pitchQuat, yawQuat);
+	XMVECTOR pitchQuat = XMQuaternionRotationAxis(right, pitchDelta);
+	XMVECTOR yawQuat = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), yawDelta);
 
-		forward = XMVector3Rotate(forward, combinedQuat);
-		XMStoreFloat3(&m_ForwardDirection, forward);
-		right = XMVector3Cross(forward, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
-		XMStoreFloat3(&m_RightDirection, XMVector3Normalize(right));
-		RecalculateView();
-		//RecalculateRayDirections();
+	XMVECTOR combinedQuat = XMQuaternionMultiply(pitchQuat, yawQuat);
+
+	forward = XMVector3Rotate(forward, combinedQuat);
+	XMStoreFloat3(&m_ForwardDirection, forward);
+	right = XMVector3Cross(forward, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+	XMStoreFloat3(&m_RightDirection, XMVector3Normalize(right));
+	up = XMVector3Rotate(up, combinedQuat);
+	XMStoreFloat3(&m_UpDirection, XMVector3Normalize(up));
+	RecalculateView();
+	//RecalculateRayDirections();
 
 }
 
@@ -168,7 +172,7 @@ bool Camera::HandleWindowsMessage(UINT message, WPARAM wParam, LPARAM lParam)
 			moved = true;
 			break;
 		}
-		
+
 		}
 
 	}
@@ -177,7 +181,7 @@ bool Camera::HandleWindowsMessage(UINT message, WPARAM wParam, LPARAM lParam)
 
 void Camera::RecalculateProjection()
 {
-	m_Projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(m_VerticalFOV), (float)m_ViewportWidth/(float)m_ViewportHeight, m_NearClip, m_FarClip);
+	m_Projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(m_VerticalFOV), (float)m_ViewportWidth / (float)m_ViewportHeight, m_NearClip, m_FarClip);
 	m_InverseProjection = XMMatrixInverse(nullptr, m_Projection);
 }
 
@@ -218,7 +222,7 @@ void Camera::RecalculateRayDirections()
 
 			XMVECTOR worldDirection = XMVector3TransformNormal(viewSpace, m_InverseView);
 			worldDirection = XMVector3Normalize(worldDirection);
-			
+
 			XMStoreFloat3(&m_RayDirections[x + y * m_ViewportWidth], worldDirection);
 
 		}

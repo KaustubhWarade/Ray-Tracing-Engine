@@ -7,6 +7,7 @@
 #include "global.h"
 #include "D3D.h"
 #include "../IApplication.h"
+#include "../CoreHelper Files/ResourceManager.h"
 using namespace DirectX;
 
 
@@ -259,7 +260,7 @@ void uninitialize(void)
 {
 	// function declaration
 	void ToggleFullScreen(void);
-
+	ResourceManager::Get()->Shutdown();
 	g_pRenderEngine->uninitialize();
 
 	// fi RenderEngine  is exitting in full screen

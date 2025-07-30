@@ -35,7 +35,7 @@ HRESULT SceneOne::Initialize(RenderEngine* pRenderEngine)
 		D3D12_DESCRIPTOR_RANGE1 descriptorRangeSRV = {};
 		ZeroMemory(&descriptorRangeSRV, sizeof(D3D12_DESCRIPTOR_RANGE1));
 		descriptorRangeSRV.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		descriptorRangeSRV.NumDescriptors = 3; // 3 structure buffers
+		descriptorRangeSRV.NumDescriptors = 4; // 3 structure buffers
 		descriptorRangeSRV.BaseShaderRegister = 0;
 		descriptorRangeSRV.RegisterSpace = 0;
 		descriptorRangeSRV.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
@@ -44,7 +44,7 @@ HRESULT SceneOne::Initialize(RenderEngine* pRenderEngine)
 		ZeroMemory(&descriptorRangeTextureSRV, sizeof(D3D12_DESCRIPTOR_RANGE1));
 		descriptorRangeTextureSRV.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 		descriptorRangeTextureSRV.NumDescriptors = 1; // 1 texture
-		descriptorRangeTextureSRV.BaseShaderRegister = 3;
+		descriptorRangeTextureSRV.BaseShaderRegister = 4;
 		descriptorRangeTextureSRV.RegisterSpace = 0;
 		descriptorRangeTextureSRV.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
@@ -247,6 +247,8 @@ HRESULT SceneOne::InitializeResources(void)
 		//white
 		Material tempMaterial;
 		tempMaterial.Albedo = XMFLOAT3(1.0f, 1.0f, 1.0f);
+		tempMaterial.Metallic = 0.995;
+		tempMaterial.Roughness = 0.01;
 		m_sceneData.Materials.push_back(tempMaterial);
 		//red
 		tempMaterial.Albedo = XMFLOAT3(1.0f, 0.0f, 0.0f);
@@ -254,28 +256,40 @@ HRESULT SceneOne::InitializeResources(void)
 		//green
 		tempMaterial.Albedo = XMFLOAT3(0.0f, 1.0f, 0.0f);
 		m_sceneData.Materials.push_back(tempMaterial);
+		//blue
+		tempMaterial.Albedo = XMFLOAT3(0.0f, 0.0f, 1.0f);
+		m_sceneData.Materials.push_back(tempMaterial);
 
 		//light
 		tempMaterial.Albedo = XMFLOAT3(1.0f, 1.0f, 1.0f);
 		tempMaterial.EmissionColor = XMFLOAT3(1.0f, 1.0f, 1.0f);
-		tempMaterial.EmissionPower = 2.0f;
+		tempMaterial.EmissionPower = 5.0f;
 		m_sceneData.Materials.push_back(tempMaterial);
 		//spheres material
 		tempMaterial.Albedo = XMFLOAT3(1.0f, 1.0f, 0.0f);
 		tempMaterial.EmissionColor = XMFLOAT3(0.0f, 0.0f, 0.0f);
 		tempMaterial.EmissionPower = 0.0f;
+		tempMaterial.Metallic = 0.995;
+		tempMaterial.Roughness = 1.0;
+		m_sceneData.Materials.push_back(tempMaterial);
+
+		tempMaterial.Albedo = XMFLOAT3(0.7f, 0.7f, 0.7f);
+		tempMaterial.EmissionColor = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		tempMaterial.EmissionPower = 0.0f;
+		tempMaterial.Metallic = 0.995;
+		tempMaterial.Roughness = 0.01;
 		m_sceneData.Materials.push_back(tempMaterial);
 	}
 	{
 		Sphere tempSphere;
 		tempSphere.Position = XMFLOAT3(-1.0f, 1.0f, 0.0f);
 		tempSphere.Radius = 0.75f;
-		tempSphere.MaterialIndex = 4;
+		tempSphere.MaterialIndex = 5;
 		m_sceneData.Spheres.push_back(tempSphere);
 
 		tempSphere.Position = XMFLOAT3(1.0f, 1.0f, 0.0f);
 		tempSphere.Radius = 0.75f;
-		tempSphere.MaterialIndex = 4;
+		tempSphere.MaterialIndex = 5;
 		m_sceneData.Spheres.push_back(tempSphere);
 	}
 	//cornell box
@@ -295,8 +309,8 @@ HRESULT SceneOne::InitializeResources(void)
 		tri.v0 = XMFLOAT3(+2.0f, -0.0f, -2.0f); tri.v1 = XMFLOAT3(-2.0f, +6.0f, -2.0f); tri.v2 = XMFLOAT3(-2.0f, -0.0f, -2.0f);
 		m_sceneData.Triangles.push_back(tri);
 
-		// Left wall (green)
-		tri.MaterialIndex = 2;
+		// Left wall (blue)
+		tri.MaterialIndex = 3;
 		tri.v0 = XMFLOAT3(-2.0f, +6.0f, +2.0f); tri.v1 = XMFLOAT3(-2.0f, +6.0f, -2.0f); tri.v2 = XMFLOAT3(-2.0f, -0.0f, +2.0f);
 		m_sceneData.Triangles.push_back(tri);
 		tri.v0 = XMFLOAT3(-2.0f, -0.0f, +2.0f); tri.v1 = XMFLOAT3(-2.0f, +6.0f, -2.0f); tri.v2 = XMFLOAT3(-2.0f, -0.0f, -2.0f);
@@ -309,15 +323,22 @@ HRESULT SceneOne::InitializeResources(void)
 		tri.v0 = XMFLOAT3(-2.0f, +6.0f, -2.0f); tri.v1 = XMFLOAT3(+2.0f, +6.0f, +2.0f); tri.v2 = XMFLOAT3(+2.0f, +6.0f, -2.0f);
 		m_sceneData.Triangles.push_back(tri);
 
-		// Bottom wall (white)
-		tri.MaterialIndex = 0;
+		// Bottom wall (green)
+		tri.MaterialIndex = 2;
 		tri.v0 = XMFLOAT3(-2.0f, -0.0f, -2.0f); tri.v1 = XMFLOAT3(+2.0f, -0.0f, -2.0f); tri.v2 = XMFLOAT3(-2.0f, -0.0f, +2.0f);
 		m_sceneData.Triangles.push_back(tri);
 		tri.v0 = XMFLOAT3(-2.0f, -0.0f, +2.0f); tri.v1 = XMFLOAT3(+2.0f, -0.0f, -2.0f); tri.v2 = XMFLOAT3(+2.0f, -0.0f, +2.0f);
 		m_sceneData.Triangles.push_back(tri);
 
+		// fromt wall (white)
+		tri.MaterialIndex = 6;
+		tri.v0 = XMFLOAT3(+2.0f, +6.0f, 2.0f); tri.v1 = XMFLOAT3(-2.0f, +6.0f, 2.0f); tri.v2 = XMFLOAT3(+2.0f, -0.0f, 2.0f);
+		m_sceneData.Triangles.push_back(tri);
+		tri.v0 = XMFLOAT3(+2.0f, -0.0f, 2.0f); tri.v1 = XMFLOAT3(-2.0f, +6.0f, 2.0f); tri.v2 = XMFLOAT3(-2.0f, -0.0f, 2.0f);
+		m_sceneData.Triangles.push_back(tri);
+
 		// Light
-		tri.MaterialIndex = 3;
+		tri.MaterialIndex = 4;
 		tri.v0 = XMFLOAT3(-1.0f, +5.99f, +1.0f); tri.v1 = XMFLOAT3(+1.0f, +5.99f, +1.0f); tri.v2 = XMFLOAT3(-1.0f, +5.99f, -1.0f);
 		m_sceneData.Triangles.push_back(tri);
 		tri.v0 = XMFLOAT3(-1.0f, +5.99f, -1.0f); tri.v1 = XMFLOAT3(+1.0f, +5.99f, +1.0f); tri.v2 = XMFLOAT3(+1.0f, +5.99f, -1.0f);
@@ -343,12 +364,28 @@ HRESULT SceneOne::InitializeResources(void)
 		for (size_t i = 0; i < indices.size(); i += 3)
 		{
 			Triangle tri;
-			tri.v0 = vertices[indices[i + 0]].Position;
-			tri.v1 = vertices[indices[i + 1]].Position;
-			tri.v2 = vertices[indices[i + 2]].Position;
+			// Get the three vertices that make up this triangle
+			const ModelVertex& vertex0 = vertices[indices[i + 0]];
+			const ModelVertex& vertex1 = vertices[indices[i + 1]];
+			const ModelVertex& vertex2 = vertices[indices[i + 2]];
+
+			// Store their positions
+			tri.v0 = vertex0.Position;
+			tri.v1 = vertex1.Position;
+			tri.v2 = vertex2.Position;
+
+			// --- NEW: Store their normals ---
+			tri.n0 = vertex0.Normal;
+			tri.n1 = vertex1.Normal;
+			tri.n2 = vertex2.Normal;
+
 			tri.MaterialIndex = modelMaterialIndex;
 			m_sceneData.Triangles.push_back(tri);
 		}
+	}
+	if (!m_sceneData.Triangles.empty())
+	{
+		BVHBuilder::Build(m_sceneData.Triangles, m_bvhNodes);
 	}
 
 	return hr;
@@ -388,9 +425,19 @@ HRESULT SceneOne::InitializeComputeResources(void)
 			m_triangleBuffer->SetName(L"Triangle Buffer");
 		}
 
-		CreateDefaultBuffer(pDevice, pCommandList, m_sceneData.Materials.data(),
-			sizeof(Material) * m_sceneData.Materials.size(), m_materialUpload, m_materialBuffer);
+		if (!m_sceneData.Materials.empty())
+		{
+			CreateDefaultBuffer(pDevice, pCommandList, m_sceneData.Materials.data(),
+				sizeof(Material) * m_sceneData.Materials.size(), m_materialUpload, m_materialBuffer);
 		m_materialBuffer->SetName(L"Material Buffer");
+		}
+
+		if (!m_bvhNodes.empty())
+		{
+			CreateDefaultBuffer(pDevice, pCommandList, m_bvhNodes.data(),
+				sizeof(BVHNode) * m_bvhNodes.size(), m_bvhUploadBuffer, m_bvhBuffer);
+			m_bvhBuffer->SetName(L"BVH Buffer");
+		}
 	}
 
 	EXECUTE_AND_LOG_RETURN(CreateDescriptorTables());
@@ -428,7 +475,7 @@ HRESULT SceneOne::CreateDescriptorTables()
 		m_ConstantBufferView->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin));
 	}
 
-	m_computeDescriptorTable = resourceManager->m_cbvSrvUavAllocator.Allocate(7);
+	m_computeDescriptorTable = resourceManager->m_cbvSrvUavAllocator.Allocate(8);
 	D3D12_CPU_DESCRIPTOR_HANDLE computeHeapHandle = m_computeDescriptorTable.CpuHandle;
 	UINT descriptorSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
@@ -475,7 +522,16 @@ HRESULT SceneOne::CreateDescriptorTables()
 	pDevice->CreateShaderResourceView(m_materialBuffer.Get(), &srvDesc, computeHeapHandle);
 	computeHeapHandle.ptr += descriptorSize;
 
-	// 7. SRV for Environment texture (t3)
+	// 7. SRV for BVH Buffer(t3) 
+	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Buffer.NumElements = m_bvhNodes.empty() ? 0 : (UINT)m_bvhNodes.size();
+	srvDesc.Buffer.StructureByteStride = m_bvhNodes.empty() ? 0 : sizeof(BVHNode);
+	pDevice->CreateShaderResourceView(m_bvhNodes.empty() ? nullptr : m_bvhBuffer.Get(), &srvDesc, computeHeapHandle);
+	computeHeapHandle.ptr += descriptorSize;
+
+	// 8. SRV for Environment texture (t4)
 	D3D12_SHADER_RESOURCE_VIEW_DESC envSrvDesc = {};
 	envSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	envSrvDesc.Format = m_pEnvironmentTexture->m_ResourceGPU->GetDesc().Format;
@@ -609,7 +665,7 @@ void SceneOne::PopulateCommandList(void)
 	computeHeapHandle.ptr += 2 * descriptorSize;
 	// Root Param 2: Buffer SRVs
 	cmdList->SetComputeRootDescriptorTable(2, computeHeapHandle);
-	computeHeapHandle.ptr += 3 * descriptorSize;
+	computeHeapHandle.ptr += 4 * descriptorSize;
 	// Root Param 3: Texture SRVs
 	cmdList->SetComputeRootDescriptorTable(3, computeHeapHandle);
 

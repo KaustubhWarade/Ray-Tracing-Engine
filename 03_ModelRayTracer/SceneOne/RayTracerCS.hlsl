@@ -26,8 +26,17 @@ struct Sphere
 
 struct Triangle
 {
-    float3 v0, v1, v2;
+    float3 v0, v1, v2; // Vertex positions
     int MaterialIndex;
+    float3 n0, n1, n2; // Vertex normals
+};
+
+struct BVHNode
+{
+    float3 aabbMin;
+    int leftChildOrFirstTriangleIndex;
+    float3 aabbMax;
+    int triangleCount;
 };
 
 struct Ray
@@ -66,11 +75,13 @@ cbuffer SceneConstants : register(b0)
 StructuredBuffer<Sphere> g_Spheres : register(t0);
 StructuredBuffer<Triangle> g_Triangles : register(t1);
 StructuredBuffer<Material> g_Materials : register(t2);
+StructuredBuffer<BVHNode> g_BVH: register(t3);
+
 
 RWTexture2D<float4> g_AccumulationTexture : register(u0);
 RWTexture2D<float4> g_OutputTexture : register(u1);
 
-Texture2D g_EnvironmentTexture : register(t3);
+Texture2D g_EnvironmentTexture : register(t4);
 SamplerState g_StaticSampler : register(s0);
 
 
@@ -176,6 +187,15 @@ HitData IntersectTriangle(Ray ray, Triangle tri, uint triIndex)
     if (a > -1e-6 && a < 1e-6) 
         return hit;
     
+    if (tri.MaterialIndex == 6)
+    {
+        float3 normal = normalize(cross(edge1, edge2));
+        if (dot(ray.Direction, normal) < 0.0)
+        {
+            return hit; 
+        }
+    }
+    
     float f = 1.0f / a;
     float3 s = ray.Origin - tri.v0;
     float u = f * dot(s, h);
@@ -204,6 +224,89 @@ HitData IntersectTriangle(Ray ray, Triangle tri, uint triIndex)
     return hit;
 }
 
+bool RayAABB(Ray ray, float3 min_aabb, float3 max_aabb, out float hitDist)
+{
+    float3 invD = 1.0f / ray.Direction;
+    float3 t0s = (min_aabb - ray.Origin) * invD;
+    float3 t1s = (max_aabb - ray.Origin) * invD;
+
+    float3 tmin = min(t0s, t1s);
+    float3 tmax = max(t0s, t1s);
+
+    float t_enter = max(max(tmin.x, tmin.y), tmin.z);
+    float t_exit = min(min(tmax.x, tmax.y), tmax.z);
+    
+    hitDist = t_enter;
+    return t_exit >= t_enter && t_exit > 0;
+}
+
+void BVHTraverse(Ray ray, inout HitData closestHit)
+{
+   
+    int stack[64];
+    int stackPtr = 0;
+    stack[stackPtr++] = 0; 
+
+    while (stackPtr > 0)
+    {
+        int nodeIndex = stack[--stackPtr];
+        BVHNode node = g_BVH[nodeIndex];
+        
+        float distToAABB;
+        if (RayAABB(ray, node.aabbMin, node.aabbMax, distToAABB))
+        {
+            if (distToAABB > closestHit.HitDistance)
+                continue;
+
+            if (node.triangleCount > 0) 
+            {// leaf node
+                for (int i = 0; i < node.triangleCount; ++i)
+                {
+                    uint triIndex = node.leftChildOrFirstTriangleIndex + i;
+                    HitData hit = IntersectTriangle(ray, g_Triangles[triIndex], triIndex);
+                    if (hit.HitDistance > 0 && hit.HitDistance < closestHit.HitDistance)
+                    {
+                        closestHit = hit;
+                    }
+                }
+            }
+            else //internal node
+            {
+                               // This is the optimized traversal logic
+                BVHNode leftChild = g_BVH[node.leftChildOrFirstTriangleIndex];
+                BVHNode rightChild = g_BVH[node.leftChildOrFirstTriangleIndex + 1];
+
+                float distLeft, distRight;
+                bool hitLeft = RayAABB(ray, leftChild.aabbMin, leftChild.aabbMax, distLeft);
+                bool hitRight = RayAABB(ray, rightChild.aabbMin, rightChild.aabbMax, distRight);
+
+                if (hitLeft && hitRight)
+                {
+                    // Push the farther child first so the closer one is processed next
+                    if (distLeft < distRight)
+                    {
+                        stack[stackPtr++] = node.leftChildOrFirstTriangleIndex + 1; // Right child (farther)
+                        stack[stackPtr++] = node.leftChildOrFirstTriangleIndex; // Left child (closer)
+                    }
+                    else
+                    {
+                        stack[stackPtr++] = node.leftChildOrFirstTriangleIndex; // Left child (farther)
+                        stack[stackPtr++] = node.leftChildOrFirstTriangleIndex + 1; // Right child (closer)
+                    }
+                }
+                else if (hitLeft)
+                {
+                    stack[stackPtr++] = node.leftChildOrFirstTriangleIndex;
+                }
+                else if (hitRight)
+                {
+                    stack[stackPtr++] = node.leftChildOrFirstTriangleIndex + 1;
+                }
+            }
+        }
+    }
+}
+
 HitData TraceRay(Ray ray)
 {
     HitData closestHit;
@@ -211,14 +314,13 @@ HitData TraceRay(Ray ray)
     closestHit.ObjectIndex = -1;
     closestHit.ObjectType = -1;
 
+    // --- Sphere Intersection (remains the same) ---
     uint numSpheres, sphereStride;
     g_Spheres.GetDimensions(numSpheres, sphereStride);
-
-    //Sphere Intersection
     for (uint i = 0; i < numSpheres; i++)
     {
         Sphere sphere = g_Spheres[i];
-
+        //... (sphere intersection logic as before)
         float3 originToCenter = ray.Origin - sphere.Position;
         float a = dot(ray.Direction, ray.Direction);
         float b = 2.0f * dot(originToCenter, ray.Direction);
@@ -235,22 +337,12 @@ HitData TraceRay(Ray ray)
             closestHit.HitDistance = closestT;
             closestHit.ObjectIndex = i;
             closestHit.ObjectType = 0;
-
         }
     }
     
-    //triangle Intersection
-    uint numTriangles, stride;
-    g_Triangles.GetDimensions(numTriangles, stride);
-    for (uint j = 0; j < numTriangles; j++)
-    {
-        HitData triHit = IntersectTriangle(ray, g_Triangles[j], j);
-        if (triHit.HitDistance > 0 && triHit.HitDistance < closestHit.HitDistance)
-        {
-            closestHit = triHit;
-        }
-    }
+    BVHTraverse(ray, closestHit);
     
+    // Finalize hit data (this part is mostly the same)
     if (closestHit.ObjectIndex < 0)
     {
         closestHit.ObjectIndex = -1;
@@ -258,14 +350,16 @@ HitData TraceRay(Ray ray)
         return closestHit;
     }
     
-    if (closestHit.ObjectType == 0)
+    if (closestHit.ObjectType == 0) // Sphere
     {
         closestHit.HitPosition = ray.Origin + ray.Direction * closestHit.HitDistance;
         Sphere hitSphere = g_Spheres[closestHit.ObjectIndex];
         closestHit.HitNormal = normalize(closestHit.HitPosition - hitSphere.Position);
     }
+    
     return closestHit;
 }
+
 
 
 // =========================================================================
@@ -276,7 +370,7 @@ HitData TraceRay(Ray ray)
 void HandleOpaqueMaterial(inout Ray ray, inout float3 rayColor, const Material material, float3 normal, inout uint seed)
 {
     // --- Metal ---
-    if (material.Metallic > 0.99f) // Treat as pure metal
+    if (PCG_RandomFloat(seed) < material.Metallic) // Treat as pure metal
     {
         float3 specularDir = reflect(ray.Direction, normal);
         ray.Direction = normalize(specularDir + (material.Roughness * material.Roughness) * PCG_InUnitSphere(seed));
@@ -367,7 +461,7 @@ float3 DispatchRay(Ray ray, inout uint seed)
             // light += envColorSample.rgb * rayColor;
             break;
         }
-        
+        //return hitData.HitNormal * 0.5f + 0.5f;
         Material material;
         if (hitData.ObjectType == 0) // Sphere
         {

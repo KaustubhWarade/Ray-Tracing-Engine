@@ -70,6 +70,7 @@ private:
 	ComPtr<ID3D12Resource> m_sphereUpload, m_sphereBuffer;
 	ComPtr<ID3D12Resource> m_triangleUpload, m_triangleBuffer;
 	ComPtr<ID3D12Resource> m_materialUpload, m_materialBuffer;
+	ComPtr<ID3D12Resource> m_bvhUploadBuffer, m_bvhBuffer;
 
 	// Pointers to resources managed by ResourceManager
 	Image* m_pAccumulationImage = nullptr;
@@ -97,4 +98,6 @@ private:
 		std::vector<Material> Materials = {};
 	};
 	SceneData m_sceneData;
+
+	std::vector<BVHNode> m_bvhNodes;
 };

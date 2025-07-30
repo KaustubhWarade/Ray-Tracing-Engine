@@ -87,6 +87,9 @@
     <ClCompile Include="CoreHelper Files\Texture.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="CoreHelper Files\BVHBuilder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CoreHelper Files\Camera.h">
@@ -222,6 +225,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="CoreHelper Files\Texture.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreHelper Files\BVHBuilder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreHelper Files\Mesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

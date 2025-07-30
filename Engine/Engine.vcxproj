@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CoreHelper Files\BVHBuilder.cpp" />
     <ClCompile Include="CoreHelper Files\Camera.cpp" />
     <ClCompile Include="CoreHelper Files\CommonFunction.cpp" />
     <ClCompile Include="CoreHelper Files\DDSTextureLoader12.cpp" />
@@ -45,6 +46,7 @@
     <ClCompile Include="RenderEngine Files\RenderEngine.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CoreHelper Files\BVHBuilder.h" />
     <ClInclude Include="CoreHelper Files\Camera.h" />
     <ClInclude Include="CoreHelper Files\CommonFunction.h" />
     <ClInclude Include="CoreHelper Files\DDSTextureLoader12.h" />
@@ -63,6 +65,7 @@
     <ClInclude Include="CoreHelper Files\GeoMetryHelper.h" />
     <ClInclude Include="CoreHelper Files\Helper.h" />
     <ClInclude Include="CoreHelper Files\Image.h" />
+    <ClInclude Include="CoreHelper Files\Mesh.h" />
     <ClInclude Include="CoreHelper Files\Model Loader\ModelLoader.h" />
     <ClInclude Include="CoreHelper Files\ResourceManager.h" />
     <ClInclude Include="CoreHelper Files\Texture.h" />

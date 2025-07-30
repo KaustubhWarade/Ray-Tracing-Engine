@@ -11,4 +11,5 @@
 #include "Random.h"
 #include "DescriptorAllocator.h"
 #include "./Model Loader/ModelLoader.h"
+#include "BVHBuilder.h"
 

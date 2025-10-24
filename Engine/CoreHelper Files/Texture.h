@@ -9,11 +9,9 @@
 struct Texture
 {
 	ComPtr<ID3D12Resource> m_ResourceGPU;
-	DescriptorAllocation SrvAllocation;
+	DescriptorHandle SrvHandle;
 	std::wstring FilePath;
+	UINT BindlessSrvIndex = -1;
 
-	std::unique_ptr<uint8_t[]> m_textureddsData;
-	std::vector<D3D12_SUBRESOURCE_DATA> m_texturesubresources;
-	UINT MipLevels = 1;
 };
 

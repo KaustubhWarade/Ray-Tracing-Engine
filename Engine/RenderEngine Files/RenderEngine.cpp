@@ -5,7 +5,11 @@
 
 #include "global.h"
 
-//Random random;
+RenderEngine* RenderEngine::Get()
+{
+	static RenderEngine instance; // Created once and guaranteed to be destroyed correctly.
+	return &instance;
+}
 
 bool RenderEngine::HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -85,10 +89,13 @@ HRESULT RenderEngine ::initialize()
 		return 0;
 	}
 
-	//EXECUTE_AND_LOG_RETURN(m_cbvSrvUavAllocator.Create(m_device.Get()));
-	//m_cbvSrvUavAllocator.GetHeap()->SetName(L"Master CBV/SRV/UAV Heap");
+	EXECUTE_AND_LOG_RETURN(ResourceManager::Get()->Initialize(m_device.Get(), m_commandList.Get(), this));
+
+	EXECUTE_AND_LOG_RETURN(AccelerationStructureManager::Get()->Initialize(m_device.Get(),RenderEngine::Get()));
 
 	EXECUTE_AND_LOG_RETURN(m_pApplication->InitializeApplication(this));
+
+	EXECUTE_AND_LOG_RETURN(initialize_imgui());
 
 	EXECUTE_AND_LOG_RETURN(m_commandList->Close());
 	ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
@@ -320,11 +327,36 @@ HRESULT RenderEngine ::CreateDepthStencilBuffer(UINT width, UINT height)
 	TransitionResource(m_commandList.Get(), m_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 }
 
+void RenderEngine::TrackResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON)
+{
+	if (resource)
+	{
+		m_resourceStates[resource] = initialState;
+	}
+}
+
+void RenderEngine::UnTrackResource(ID3D12Resource* resource)
+{
+	if (resource)
+	{
+		auto it = m_resourceStates.find(resource);
+		if (it != m_resourceStates.end())
+		{
+			m_resourceStates.erase(it);
+		}
+	}
+}
+
 void RenderEngine::TransitionResource(
 	ID3D12GraphicsCommandList* cmdList,
 	ID3D12Resource* resource,
 	D3D12_RESOURCE_STATES newState)
 {
+	if (m_resourceStates.count(resource) && m_resourceStates[resource] == newState)
+	{
+		return;
+	}
+
 	D3D12_RESOURCE_BARRIER barrier = {};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Transition.pResource = resource;

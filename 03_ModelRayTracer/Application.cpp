@@ -14,10 +14,10 @@ std::unique_ptr<IApplication> CreateApplication()
 HRESULT Application::InitializeApplication(RenderEngine* pRenderEngine)
 {
 	m_pRenderer = pRenderEngine;
-	auto mySphereRaytracingScene = std::make_unique<SceneOne>();
-	AddScene("CornellBoxRayTracer", std::move(mySphereRaytracingScene));
+	auto cornelBoxRaytracingScene = std::make_unique<SceneOne>();
+	AddScene("CornellBoxRayTracer", std::move(cornelBoxRaytracingScene));
 	m_CurrentSceneName = "CornellBoxRayTracer";
-	EXECUTE_AND_LOG_RETURN(ResourceManager::Get()->Initialize(m_pRenderer->GetDevice(), m_pRenderer->m_commandList.Get(), m_pRenderer));
+
 	return SwitchToScene("CornellBoxRayTracer");
 }
 

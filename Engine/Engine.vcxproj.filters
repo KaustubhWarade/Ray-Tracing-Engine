@@ -90,6 +90,18 @@
     <ClCompile Include="CoreHelper Files\BVHBuilder.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="CoreHelper Files\TLASBuilder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreHelper Files\AccelerationStructureManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreHelper Files\DescriptorTable.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreHelper Files\GpuBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CoreHelper Files\Camera.h">
@@ -231,6 +243,21 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="CoreHelper Files\Mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreHelper Files\TLASBuilder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreHelper Files\AccelerationStructureManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreHelper Files\RayTracingStructs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreHelper Files\DescriptorTable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreHelper Files\GpuBuffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

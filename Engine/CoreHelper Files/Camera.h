@@ -32,19 +32,19 @@ public:
 	{
 		m_Position = position;
 		RecalculateView();
-		RecalculateRayDirections();
+		//RecalculateRayDirections();
 	}
 	void SetPosition(const XMVECTOR &position)
 	{
 		XMStoreFloat3(&m_Position, position);
 		RecalculateView();
-		RecalculateRayDirections();
+		//RecalculateRayDirections();
 	}
 	void SetPosition(float x, float y, float z)
 	{
 		m_Position = XMFLOAT3(x, y, z);
 		RecalculateView();
-		RecalculateRayDirections();
+		//RecalculateRayDirections();
 	}
 
 
@@ -72,7 +72,7 @@ private:
 
 	float m_VerticalFOV = 45.0f;
 	float m_NearClip = 0.1f;
-	float m_FarClip = 100.0f;
+	float m_FarClip = 500.0f;
 
 	XMFLOAT3 m_Position{0.0f, 0.0f, 0.0f};
 	XMFLOAT3 m_ForwardDirection{0.0f, 0.0f, 0.0f};

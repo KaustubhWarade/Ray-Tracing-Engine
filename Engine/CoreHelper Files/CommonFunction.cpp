@@ -3,6 +3,8 @@
 #include "CommonFunction.h"
 #include "../RenderEngine Files/global.h"
 #include "../RenderEngine Files/RenderEngine.h"
+#include <shobjidl.h> 
+#include <Windows.h>
 
 
 HRESULT CreateDefaultBuffer(
@@ -11,19 +13,21 @@ HRESULT CreateDefaultBuffer(
 	const void* initData,
 	UINT64 dataSize,
 	Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer,
-	Microsoft::WRL::ComPtr<ID3D12Resource>& defaultBuffer)
+	Microsoft::WRL::ComPtr<ID3D12Resource>& defaultBuffer,
+	UINT64 bufferSize)
 {
-	if (dataSize == 0)
+	if (dataSize == 0 && bufferSize == 0)
 	{
-		uploadBuffer.Reset();  
-		defaultBuffer.Reset(); 
-		return S_OK; 
+		uploadBuffer.Reset();
+		defaultBuffer.Reset();
+		return S_OK;
 	}
+	UINT64 finalBufferSize = (bufferSize > dataSize) ? bufferSize : dataSize;
 
 	D3D12_RESOURCE_DESC resourceDesc = {};
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	resourceDesc.Alignment = 0;
-	resourceDesc.Width = dataSize;
+	resourceDesc.Width = finalBufferSize;
 	resourceDesc.Height = 1;
 	resourceDesc.DepthOrArraySize = 1;
 	resourceDesc.MipLevels = 1;
@@ -43,6 +47,8 @@ HRESULT CreateDefaultBuffer(
 		nullptr,
 		IID_PPV_ARGS(defaultBuffer.GetAddressOf())));
 
+	RenderEngine::Get()->TrackResource(defaultBuffer.Get(), D3D12_RESOURCE_STATE_COMMON);
+
 	D3D12_HEAP_PROPERTIES heapUploadProps = {};
 	CreateHeapProperties(heapUploadProps, D3D12_HEAP_TYPE_UPLOAD);
 	EXECUTE_AND_LOG_RETURN(device->CreateCommittedResource(
@@ -60,9 +66,7 @@ HRESULT CreateDefaultBuffer(
 	subResourceData.SlicePitch = subResourceData.RowPitch;
 
 	// Schedule a copy from the upload buffer to the default buffer.
-	TransitionResource(cmdList, defaultBuffer.Get(),
-		D3D12_RESOURCE_STATE_COMMON,
-		D3D12_RESOURCE_STATE_COPY_DEST);
+	RenderEngine::Get()->TransitionResource(cmdList, defaultBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
 
 	void* pMappedData = nullptr;
 	D3D12_RANGE readRange = { 0, 0 };
@@ -78,38 +82,10 @@ HRESULT CreateDefaultBuffer(
 		0,
 		dataSize);
 
-	TransitionResource(cmdList, defaultBuffer.Get(),
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		D3D12_RESOURCE_STATE_GENERIC_READ);
+	RenderEngine::Get()->TransitionResource(cmdList, defaultBuffer.Get(), D3D12_RESOURCE_STATE_GENERIC_READ);
 
 	return S_OK;
 }
-
-
-void TransitionResource(
-	ID3D12GraphicsCommandList* cmdList,
-	ID3D12Resource* resource,
-	D3D12_RESOURCE_STATES oldState,
-	D3D12_RESOURCE_STATES newState)
-{
-	D3D12_RESOURCE_BARRIER barrier = {};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Transition.pResource = resource;
-	barrier.Transition.StateBefore = oldState;
-	barrier.Transition.StateAfter = newState;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-
-	// log resource and barrier states
-#ifdef _DEBUG
-	if (gpFile != NULL)
-	{
-		fprintf(gpFile, "Stateless Transition: resource %p from state %d to state %d.\n", resource, oldState, newState);
-	}
-#endif
-
-	cmdList->ResourceBarrier(1, &barrier);
-}
-
 
 void CreateHeapProperties(D3D12_HEAP_PROPERTIES& heap, D3D12_HEAP_TYPE heapType)
 {
@@ -121,6 +97,45 @@ void CreateHeapProperties(D3D12_HEAP_PROPERTIES& heap, D3D12_HEAP_TYPE heapType)
 	heap.VisibleNodeMask = 1;
 }
 
+std::wstring OpenFileDialog()
+{
+	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+	if (FAILED(hr))
+		return L"";
+
+	IFileOpenDialog* pFileOpen = nullptr;
+	hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_ALL,
+		IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+
+	if (SUCCEEDED(hr))
+	{
+		hr = pFileOpen->Show(nullptr);
+		if (SUCCEEDED(hr))
+		{
+			IShellItem* pItem;
+			hr = pFileOpen->GetResult(&pItem);
+			if (SUCCEEDED(hr))
+			{
+				PWSTR pszFilePath = nullptr;
+				hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+				if (SUCCEEDED(hr))
+				{
+					std::wstring filePath(pszFilePath);
+					CoTaskMemFree(pszFilePath);
+					pItem->Release();
+					pFileOpen->Release();
+					CoUninitialize();
+					return filePath;
+				}
+				pItem->Release();
+			}
+		}
+		pFileOpen->Release();
+	}
+	CoUninitialize();
+	return L"";
+}
+
 void RenderModel(ID3D12GraphicsCommandList* cmdList, Model* model)
 {
 	if (!model) return;
@@ -130,10 +145,10 @@ void RenderModel(ID3D12GraphicsCommandList* cmdList, Model* model)
 	{
 		// Set the vertex and index buffers for this mesh.
 		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		D3D12_VERTEX_BUFFER_VIEW vertexBufferView = mesh.GPUData.VertexBufferView();
+		D3D12_VERTEX_BUFFER_VIEW vertexBufferView = mesh.VertexBufferView();
 		cmdList->IASetVertexBuffers(0, 1, &vertexBufferView);
 
-		D3D12_INDEX_BUFFER_VIEW indexBufferView = mesh.GPUData.IndexBufferView();
+		D3D12_INDEX_BUFFER_VIEW indexBufferView = mesh.IndexBufferView();
 		cmdList->IASetIndexBuffer(&indexBufferView);
 
 		// Iterate over the primitives (sub-meshes). Each is a separate draw call.
@@ -141,6 +156,34 @@ void RenderModel(ID3D12GraphicsCommandList* cmdList, Model* model)
 		{
 			// The current shader doesn't use per-primitive material data,
 			// so we just issue the draw call. The material color is ignored.
+
+			cmdList->DrawIndexedInstanced(
+				primitive.IndexCount,
+				1,
+				primitive.StartIndexLocation,
+				primitive.BaseVertexLocation,
+				0
+			);
+		}
+	}
+}
+
+void RenderModel(ID3D12GraphicsCommandList* cmdList, Model* model, UINT materialRootParamIndex)
+{
+	if (!model) return;
+
+	for (auto& mesh : model->Meshes)
+	{
+		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		D3D12_VERTEX_BUFFER_VIEW vertexBufferView = mesh.VertexBufferView();
+		cmdList->IASetVertexBuffers(0, 1, &vertexBufferView);
+
+		D3D12_INDEX_BUFFER_VIEW indexBufferView = mesh.IndexBufferView();
+		cmdList->IASetIndexBuffer(&indexBufferView);
+
+		for (auto& primitive : mesh.Primitives)
+		{
+			cmdList->SetGraphicsRoot32BitConstant(materialRootParamIndex, primitive.MaterialIndex, 0);
 
 			cmdList->DrawIndexedInstanced(
 				primitive.IndexCount,

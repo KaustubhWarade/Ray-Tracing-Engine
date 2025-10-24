@@ -10,6 +10,8 @@
 #include "Ray.h"
 #include "Random.h"
 #include "DescriptorAllocator.h"
+#include "DescriptorTable.h"
 #include "./Model Loader/ModelLoader.h"
 #include "BVHBuilder.h"
+#include "TLASBuilder.h"
 

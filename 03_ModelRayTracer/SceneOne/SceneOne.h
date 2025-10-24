@@ -6,6 +6,7 @@
 #include "CoreHelper Files/Image.h"
 #include "CoreHelper Files/PipelineBuilderHelper.h"
 #include "CoreHelper Files/ShaderHelper.h"
+#include "CoreHelper Files/GpuBuffer.h"
 #include "CoreHelper Files/Helper.h"
 #include "RenderEngine Files/global.h"
 #include "../basicStructs.h"
@@ -36,7 +37,14 @@ private:
 
 	HRESULT InitializeResources(void);
 	HRESULT InitializeComputeResources(void);
-	HRESULT CreateDescriptorTables();
+	HRESULT InitializeAccelerationStructures();
+
+	HRESULT InitializeDescriptorTables(); 
+	HRESULT UpdateImageDescriptors();
+	HRESULT UpdateStaticGeometryDescriptors();
+	HRESULT UpdateInstanceDescriptors();
+
+	void AddModelInstance(Model* model, const std::string& modelKey);
 
 	//compute Shader resources
 	COMPUTE_SHADER_DATA m_computeShaderData;
@@ -49,6 +57,8 @@ private:
 	uint32_t m_frameIndex = 1;
 
 	bool m_sceneDataDirty = false;
+	bool m_tlasDirty = false;
+	bool m_tlasInitialized = false;
 
 	// --- Scene and Compute Data ---
 	struct CBUFFER
@@ -60,28 +70,20 @@ private:
 		UINT numBounces;
 		UINT numRaysPerPixel;
 		float exposure;
-		float padding; // ensure 16-byte alignment
+		UINT UseEnvMap;
 	};
 
 	ComPtr<ID3D12Resource> m_ConstantBufferView;
 	UINT8* m_pCbvDataBegin = nullptr;
-
-	// Scene geometry buffers (managed by the scene)
-	ComPtr<ID3D12Resource> m_sphereUpload, m_sphereBuffer;
-	ComPtr<ID3D12Resource> m_triangleUpload, m_triangleBuffer;
-	ComPtr<ID3D12Resource> m_materialUpload, m_materialBuffer;
-	ComPtr<ID3D12Resource> m_bvhUploadBuffer, m_bvhBuffer;
 
 	// Pointers to resources managed by ResourceManager
 	Image* m_pAccumulationImage = nullptr;
 	Image* m_pOutputImage = nullptr;
 	Texture* m_pEnvironmentTexture = nullptr;
 	Model* m_pQuadModel = nullptr;
-	Model* m_pSceneModel = nullptr;
 
-	// Descriptors for our specific render passes
-	DescriptorAllocation m_computeDescriptorTable;
-	DescriptorAllocation m_finalPassSrvTable;
+	DescriptorTable m_computeDescriptorTable;
+	DescriptorTable m_finalPassSrvTable;
 
 	RenderEngine* m_pRenderEngine = nullptr;
 
@@ -89,15 +91,15 @@ private:
 	int mc_numBounces = 10;
 	int mc_numRaysPerPixel = 1;
 	float mc_exposure = 0.5f;
+	int m_useEnvMap = 1;
+
+	int m_selectedInstanceIndex = -1;
+	std::string m_currentEnvMapName;
 
 	// --- CPU-side scene data ---
-	struct SceneData
-	{
-		std::vector<Sphere> Spheres = {};
-		std::vector<Triangle> Triangles = {};
-		std::vector<Material> Materials = {};
-	};
-	SceneData m_sceneData;
+	std::vector<Material> m_materials;
 
-	std::vector<BVHNode> m_bvhNodes;
+	ResizableBuffer m_materialBuffer;
+
+	std::vector<ModelInstance> m_ModelInstances;
 };

@@ -23,8 +23,9 @@ public:
 	void ClearAccumulationData();
 
 	ID3D12Resource* GetResource() const { return m_gpuResource.Get(); }
-	DescriptorAllocation GetSrvHandle() const { return m_srvAllocation; }
-	DescriptorAllocation GetUavHandle() const { return m_uavAllocation; }
+	DescriptorHandle GetSrvHandle() const { return m_srvHandle; }
+	DescriptorHandle GetUavHandle() const { return m_uavHandle; }
+	DescriptorHandle GetRtvHandle() const { return m_rtvHandle; }
 
 	uint32_t* GetPixelBuffer() { return m_pixelData; }
 	XMFLOAT4* GetAccumulationBuffer() { return m_accumulateData; }
@@ -42,10 +43,16 @@ private:
 	D3D12_RESOURCE_FLAGS m_flags;
 	DXGI_FORMAT m_format;
 
+	void Internal_CreateViews();
+	void Internal_FreeViews();
+	void Shutdown();
+
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_gpuResource;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_uploadBuffer;
-	DescriptorAllocation m_srvAllocation;
-	DescriptorAllocation m_uavAllocation;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
+	DescriptorHandle m_rtvHandle;
+	DescriptorHandle m_srvHandle;
+	DescriptorHandle m_uavHandle;
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_footprint;
 };
 

@@ -7,14 +7,31 @@
 
 struct Material
 {
-    float3 Albedo;
-    float Roughness;
-    float3 EmissionColor;
-    float EmissionPower;
-    float3 AbsorptionColor;
-    float Metallic;
-    float Transmission;
+    float4 BaseColorFactor;
+    float3 EmissiveFactor;
+    float MetallicFactor;
+    float RoughnessFactor;
     float IOR;
+    float Transmission;
+    int AlphaMode;
+    float AlphaCutoff;
+    bool DoubleSided;
+    bool Unlit;
+    float ClearcoatFactor;
+    float ClearcoatRoughnessFactor;
+    float3 SheenColorFactor;
+    float SheenRoughnessFactor;
+    int BaseColorTextureIndex;
+    int MetallicRoughnessTextureIndex;
+    int NormalTextureIndex;
+    int OcclusionTextureIndex;
+    int EmissiveTextureIndex;
+    int ClearcoatTextureIndex;
+    int ClearcoatRoughnessTextureIndex;
+    int ClearcoatNormalTextureIndex;
+    int SheenColorTextureIndex;
+    int SheenRoughnessTextureIndex;
+    int TransmissionTextureIndex;
 };
 
 struct Sphere
@@ -56,7 +73,7 @@ cbuffer SceneConstants : register(b0)
 };
 
 StructuredBuffer<Sphere> g_Spheres : register(t0);
-StructuredBuffer<Sphere> g_Triangles: register(t1);
+StructuredBuffer<Sphere> g_Triangles : register(t1);
 StructuredBuffer<Material> g_Materials : register(t2);
 
 RWTexture2D<float4> g_AccumulationTexture : register(u0);
@@ -79,10 +96,10 @@ float PCG_RandomFloat(inout uint seed)
     return (float) word / 4294967295.0f;
 }
 
-float3 PCG_InUnitSphere(inout uint seed) 
+float3 PCG_InUnitSphere(inout uint seed)
 {
-    float z = PCG_RandomFloat(seed) * 2.0f - 1.0f; 
-    float a = PCG_RandomFloat(seed) * 2.0f * 3.14159265f; 
+    float z = PCG_RandomFloat(seed) * 2.0f - 1.0f;
+    float a = PCG_RandomFloat(seed) * 2.0f * 3.14159265f;
     float r = sqrt(1.0f - z * z);
     float x = r * cos(a);
     float y = r * sin(a);
@@ -210,11 +227,11 @@ HitData TraceRay(Ray ray)
 void HandleOpaqueMaterial(inout Ray ray, inout float3 rayColor, const Material material, float3 normal, inout uint seed)
 {
     // --- Metal ---
-    if (material.Metallic > 0.99f) // Treat as pure metal
+    if (material.MetallicFactor > 0.99f) // Treat as pure metal
     {
         float3 specularDir = reflect(ray.Direction, normal);
-        ray.Direction = normalize(specularDir + (material.Roughness * material.Roughness) * PCG_InUnitSphere(seed));
-        rayColor *= material.Albedo;
+        ray.Direction = normalize(specularDir + (material.RoughnessFactor * material.RoughnessFactor) * PCG_InUnitSphere(seed));
+        rayColor *= material.BaseColorFactor.rgb;
         return;
     }
 
@@ -226,20 +243,21 @@ void HandleOpaqueMaterial(inout Ray ray, inout float3 rayColor, const Material m
     if (PCG_RandomFloat(seed) < reflectance)
     {
         float3 specularDir = reflect(ray.Direction, normal);
-        ray.Direction = normalize(specularDir + (material.Roughness * material.Roughness) * PCG_InUnitSphere(seed));
+        ray.Direction = normalize(specularDir + (material.RoughnessFactor * material.RoughnessFactor) * PCG_InUnitSphere(seed));
     }
     else
     {
 		// Treat as pure dielectric/diffuse
         ray.Direction = normalize(normal + PCG_InUnitSphere(seed));;
-        rayColor *= material.Albedo;
+        rayColor *= material.BaseColorFactor.rgb;
     }
 }
 
 
 void HandleDielectricMaterial(inout Ray ray, inout float3 rayColor, const Material material, bool front_face, float3 normal, inout uint seed)
 {
-    float3 attenuation = material.Albedo; // For tinted glass
+    // For tinted glass, the base color factor is used for attenuation.
+    float3 attenuation = material.BaseColorFactor.rgb;
 
 	//Determine IOR Ratio and cosine angle
     float ior_ratio = front_face ? (1.0f / material.IOR) : material.IOR;
@@ -265,7 +283,7 @@ void HandleDielectricMaterial(inout Ray ray, inout float3 rayColor, const Materi
             HitData exitHit = TraceRay(ray);
             if (exitHit.HitDistance > 0)
             {
-                float3 absorption = -material.AbsorptionColor * exitHit.HitDistance;
+                float3 absorption = log(attenuation) * exitHit.HitDistance;
                 rayColor *= exp(absorption);
                 
                 bool exit_front_face = dot(ray.Direction, exitHit.HitNormal) < 0;
@@ -276,8 +294,8 @@ void HandleDielectricMaterial(inout Ray ray, inout float3 rayColor, const Materi
             }
         }
     }
-
-    ray.Direction = normalize(ray.Direction + material.Roughness * material.Roughness * PCG_InUnitSphere(seed)); //frosted glass effect
+    // Apply roughness for a frosted glass effect
+    ray.Direction = normalize(ray.Direction + material.RoughnessFactor * material.RoughnessFactor * PCG_InUnitSphere(seed));
 }
 
 float3 DispatchRay(Ray ray, inout uint seed)
@@ -304,7 +322,7 @@ float3 DispatchRay(Ray ray, inout uint seed)
         Sphere sphere = g_Spheres[hitData.ObjectIndex];
         Material material = g_Materials[sphere.MaterialIndex];
         
-        light += material.EmissionColor * material.EmissionPower * rayColor;
+        light += material.EmissiveFactor * rayColor;
          
         bool front_face = dot(ray.Direction, hitData.HitNormal) < 0;
         float3 normal = front_face ? hitData.HitNormal : -hitData.HitNormal;
@@ -320,13 +338,13 @@ float3 DispatchRay(Ray ray, inout uint seed)
             HandleOpaqueMaterial(ray, rayColor, material, normal, seed);
         }
         
-    if (i > 2)
-    {
-        if (RussianRoulette(rayColor, seed))
+        if (i > 2)
         {
-            break; // Terminate ray
+            if (RussianRoulette(rayColor, seed))
+            {
+                break; // Terminate ray
+            }
         }
-    }
 
     }
     return light;
@@ -357,7 +375,6 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID)
 
         float px = 2.0f * (pixelCoord.x + randomX) / width - 1.0f;
         float py = 2.0f * (pixelCoord.y + randomY) / height - 1.0f;
-        px = -px;
 
 		// The rest of your ray generation logic
         float4 coord = float4(px, py, 1, 1);

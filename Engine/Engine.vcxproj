@@ -19,12 +19,15 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CoreHelper Files\AccelerationStructureManager.cpp" />
     <ClCompile Include="CoreHelper Files\BVHBuilder.cpp" />
     <ClCompile Include="CoreHelper Files\Camera.cpp" />
     <ClCompile Include="CoreHelper Files\CommonFunction.cpp" />
     <ClCompile Include="CoreHelper Files\DDSTextureLoader12.cpp" />
     <ClCompile Include="CoreHelper Files\DescriptorAllocator.cpp" />
+    <ClCompile Include="CoreHelper Files\DescriptorTable.cpp" />
     <ClCompile Include="CoreHelper Files\GeoMetryHelper.cpp" />
+    <ClCompile Include="CoreHelper Files\GpuBuffer.cpp" />
     <ClCompile Include="CoreHelper Files\Image.cpp" />
     <ClCompile Include="CoreHelper Files\Model Loader\ModelLoader.cpp" />
     <ClCompile Include="CoreHelper Files\PipelineBuilderHelper.cpp" />
@@ -33,6 +36,7 @@
     <ClCompile Include="CoreHelper Files\RootSignitureHelper.cpp" />
     <ClCompile Include="CoreHelper Files\ShaderHelper.cpp" />
     <ClCompile Include="CoreHelper Files\Texture.cpp" />
+    <ClCompile Include="CoreHelper Files\TLASBuilder.cpp" />
     <ClCompile Include="RenderEngine Files\D3D.cpp" />
     <ClCompile Include="RenderEngine Files\ImGuiHelper.cpp" />
     <ClCompile Include="RenderEngine Files\ImGui\imgui.cpp" />
@@ -46,11 +50,13 @@
     <ClCompile Include="RenderEngine Files\RenderEngine.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CoreHelper Files\AccelerationStructureManager.h" />
     <ClInclude Include="CoreHelper Files\BVHBuilder.h" />
     <ClInclude Include="CoreHelper Files\Camera.h" />
     <ClInclude Include="CoreHelper Files\CommonFunction.h" />
     <ClInclude Include="CoreHelper Files\DDSTextureLoader12.h" />
     <ClInclude Include="CoreHelper Files\DescriptorAllocator.h" />
+    <ClInclude Include="CoreHelper Files\DescriptorTable.h" />
     <ClInclude Include="CoreHelper Files\extraPackages\d3dx12.h" />
     <ClInclude Include="CoreHelper Files\extraPackages\d3dx12_barriers.h" />
     <ClInclude Include="CoreHelper Files\extraPackages\d3dx12_check_feature_support.h" />
@@ -63,10 +69,12 @@
     <ClInclude Include="CoreHelper Files\extraPackages\d3dx12_root_signature.h" />
     <ClInclude Include="CoreHelper Files\extraPackages\d3dx12_state_object.h" />
     <ClInclude Include="CoreHelper Files\GeoMetryHelper.h" />
+    <ClInclude Include="CoreHelper Files\GpuBuffer.h" />
     <ClInclude Include="CoreHelper Files\Helper.h" />
     <ClInclude Include="CoreHelper Files\Image.h" />
     <ClInclude Include="CoreHelper Files\Mesh.h" />
     <ClInclude Include="CoreHelper Files\Model Loader\ModelLoader.h" />
+    <ClInclude Include="CoreHelper Files\RayTracingStructs.h" />
     <ClInclude Include="CoreHelper Files\ResourceManager.h" />
     <ClInclude Include="CoreHelper Files\Texture.h" />
     <ClInclude Include="CoreHelper Files\ThirdParty\json.hpp" />
@@ -78,6 +86,7 @@
     <ClInclude Include="CoreHelper Files\Ray.h" />
     <ClInclude Include="CoreHelper Files\RootSignitureHelper.h" />
     <ClInclude Include="CoreHelper Files\ShaderHelper.h" />
+    <ClInclude Include="CoreHelper Files\TLASBuilder.h" />
     <ClInclude Include="IApplication.h" />
     <ClInclude Include="RenderEngine Files\D3D.h" />
     <ClInclude Include="RenderEngine Files\global.h" />
@@ -193,6 +202,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(SolutionDir)Engine</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -200,8 +210,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PreBuildEvent>
-      <Command>xcopy /Y /D "$(ProjectDir)bin\dxcompiler.dll" "$(OutDir)"
-xcopy /Y /D "$(ProjectDir)bin\dxil.dll" "$(OutDir)"</Command>
+      <Command>xcopy /Y /D "$(ProjectDir)bin\*.dll" "$(OutDir)"</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -214,7 +223,7 @@ xcopy /Y /D "$(ProjectDir)bin\dxil.dll" "$(OutDir)"</Command>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -222,8 +231,7 @@ xcopy /Y /D "$(ProjectDir)bin\dxil.dll" "$(OutDir)"</Command>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PreBuildEvent>
-      <Command>xcopy /Y /D "$(ProjectDir)bin\dxcompiler.dll" "$(OutDir)"
-xcopy /Y /D "$(ProjectDir)bin\dxil.dll" "$(OutDir)"</Command>
+      <Command>xcopy /Y /D "$(ProjectDir)bin\*.dll" "$(OutDir)"</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -14,8 +14,8 @@ void RenderEngine::display(void)
 	// populate command list here do not close command list.
 	m_pApplication->PopulateCommandList();
 
-	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
+	ImGui_ImplDX12_NewFrame();
 	ImGui::NewFrame();
 	m_pApplication->RenderImGui();
 	ImGui::Render();

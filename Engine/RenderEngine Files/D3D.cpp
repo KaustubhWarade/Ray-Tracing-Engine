@@ -23,8 +23,6 @@ DWORD dwStyle = 0;
 WINDOWPLACEMENT wpPrev = { sizeof(WINDOWPLACEMENT) };
 BOOL gbActive = FALSE;
 
-static std::unique_ptr<RenderEngine> g_pRenderEngine;
-
 extern float m_LastRenderTime = 0.0f;
 // entry point function
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR LpszCmdLine, int iCmdShow)
@@ -80,8 +78,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR LpszCmdLi
 	// Register WNDCLASSEX
 	RegisterClassEx(&wndclass);
 
-	g_pRenderEngine = std::make_unique<RenderEngine>();
-
 	// create window
 	hwnd = CreateWindowEx(WS_EX_APPWINDOW,
 						  szAppName,
@@ -100,13 +96,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR LpszCmdLi
 
 	// initialization
 	std::unique_ptr<IApplication> pApplication = CreateApplication();
-	g_pRenderEngine->SetApplication(std::move(pApplication));
-	hr = g_pRenderEngine->initialize();
+	RenderEngine::Get()->SetApplication(std::move(pApplication));
+	hr = RenderEngine::Get()->initialize();
 	if (FAILED(hr))
 	{
 		DestroyWindow(hwnd);
 	}
-	EXECUTE_AND_LOG_RETURN(g_pRenderEngine->initialize_imgui());
 
 	ShowWindow(hwnd, iCmdShow);
 
@@ -132,9 +127,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR LpszCmdLi
 			{
 				Timer timer;
 				// render
-				g_pRenderEngine->display();
+				RenderEngine::Get()->display();
 				// update
-				g_pRenderEngine->update();
+				RenderEngine::Get()->update();
 
 				m_LastRenderTime = timer.ElapsedMillis();
 			}
@@ -161,7 +156,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		if (ImGui_ImplWin32_WndProcHandler(hwnd, iMsg, wParam, lParam))
 			return true;
 
-		if (g_pRenderEngine && g_pRenderEngine->HandleMessage(hwnd, iMsg, wParam, lParam))
+		if (RenderEngine::Get() && RenderEngine::Get()->HandleMessage(hwnd, iMsg, wParam, lParam))
 			return DefWindowProc(hwnd, iMsg, wParam, lParam);
 	}
 
@@ -177,9 +172,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_SIZE:
-		if (g_pRenderEngine->GetDevice())
+		if (RenderEngine::Get()->GetDevice())
 		{
-			EXECUTE_AND_LOG(g_pRenderEngine->resize(LOWORD(lParam), HIWORD(lParam)));
+			EXECUTE_AND_LOG(RenderEngine::Get()->resize(LOWORD(lParam), HIWORD(lParam)));
 		}
 		break;
 
@@ -261,7 +256,7 @@ void uninitialize(void)
 	// function declaration
 	void ToggleFullScreen(void);
 	ResourceManager::Get()->Shutdown();
-	g_pRenderEngine->uninitialize();
+	RenderEngine::Get()->uninitialize();
 
 	// fi RenderEngine  is exitting in full screen
 	if (gbFullScreen == TRUE)

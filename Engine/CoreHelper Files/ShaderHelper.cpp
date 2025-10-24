@@ -15,6 +15,25 @@ HRESULT InitializeDxcCompiler() // Call this once at application startup
         EXECUTE_AND_LOG_RETURN(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&g_dxcUtils)));
         EXECUTE_AND_LOG_RETURN(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&g_dxcCompiler)));
         EXECUTE_AND_LOG_RETURN(g_dxcUtils->CreateDefaultIncludeHandler(&g_dxcIncludeHandler));
+    ComPtr<IDxcVersionInfo> versionInfo;
+    hr = g_dxcCompiler.As(&versionInfo);
+
+    if (SUCCEEDED(hr))
+    {
+        UINT32 major = 0, minor = 0;
+        versionInfo->GetVersion(&major, &minor);
+        if (gpFile)
+        {
+            fprintf(gpFile, "DXC Version: %u.%u\n", major, minor);
+        }
+    }
+    else
+    {
+        if (gpFile)
+        {
+            fprintf(gpFile, "FAILED: Could not query DXC version information. HRESULT: 0x%08X\n", hr);
+        }
+    }
     }
 
     return hr;
@@ -36,6 +55,7 @@ HRESULT CompileShaderDXC(const std::wstring& filename, const wchar_t* entryPoint
         filename.c_str(),
         L"-E", entryPoint,
         L"-T", target,
+        L"-HV", L"2021",
 #ifdef _DEBUG
         L"-Zi", L"-Qembed_debug", L"-Od"
 #else

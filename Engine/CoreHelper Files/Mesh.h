@@ -6,6 +6,7 @@ struct Triangle
     DirectX::XMFLOAT3 v0, v1, v2; // Vertex positions
     int MaterialIndex;
     DirectX::XMFLOAT3 n0, n1, n2; // Vertex normals
+    DirectX::XMFLOAT2 tc0, tc1, tc2;
 };
 
 struct BVHNode

@@ -7,14 +7,31 @@
 
 struct Material
 {
-    float3 Albedo;
-    float Roughness;
-    float3 EmissionColor;
-    float EmissionPower;
-    float3 AbsorptionColor;
-    float Metallic;
-    float Transmission;
+    float4 BaseColorFactor;
+    float3 EmissiveFactor;
+    float MetallicFactor;
+    float RoughnessFactor;
     float IOR;
+    float Transmission;
+    int AlphaMode;
+    float AlphaCutoff;
+    bool DoubleSided;
+    bool Unlit;
+    float ClearcoatFactor;
+    float ClearcoatRoughnessFactor;
+    float3 SheenColorFactor;
+    float SheenRoughnessFactor;
+    int BaseColorTextureIndex;
+    int MetallicRoughnessTextureIndex;
+    int NormalTextureIndex;
+    int OcclusionTextureIndex;
+    int EmissiveTextureIndex;
+    int ClearcoatTextureIndex;
+    int ClearcoatRoughnessTextureIndex;
+    int ClearcoatNormalTextureIndex;
+    int SheenColorTextureIndex;
+    int SheenRoughnessTextureIndex;
+    int TransmissionTextureIndex;
 };
 
 struct Sphere
@@ -28,6 +45,8 @@ struct Triangle
 {
     float3 v0, v1, v2;
     int MaterialIndex;
+    float3 n0, n1, n2;
+    float2 tc0, tc1, tc2;
 };
 
 struct Ray
@@ -272,42 +291,38 @@ HitData TraceRay(Ray ray)
 // MATERIAL HANDLING
 // =========================================================================
 
-
 void HandleOpaqueMaterial(inout Ray ray, inout float3 rayColor, const Material material, float3 normal, inout uint seed)
 {
     // --- Metal ---
-    if (material.Metallic > 0.99f) // Treat as pure metal
+    if (material.MetallicFactor > 0.99f) // Treat as pure metal
     {
         float3 specularDir = reflect(ray.Direction, normal);
-        ray.Direction = normalize(specularDir + (material.Roughness * material.Roughness) * PCG_InUnitSphere(seed));
-        rayColor *= material.Albedo;
+        ray.Direction = normalize(specularDir + (material.RoughnessFactor * material.RoughnessFactor) * PCG_InUnitSphere(seed));
+        rayColor *= material.BaseColorFactor.rgb;
         return;
     }
 
-    // --- Dielectric plastic wood --
+    // --- Dielectric (non-metal) ---
     float cos_theta = min(dot(-ray.Direction, normal), 1.0f);
     float ior_ratio = 1.0f / material.IOR;
     float reflectance = schlick_reflectance(cos_theta, ior_ratio);
 
-    if (PCG_RandomFloat(seed) < reflectance)
+    if (PCG_RandomFloat(seed) < reflectance) // Specular reflection
     {
         float3 specularDir = reflect(ray.Direction, normal);
-        ray.Direction = normalize(specularDir + (material.Roughness * material.Roughness) * PCG_InUnitSphere(seed));
+        ray.Direction = normalize(specularDir + (material.RoughnessFactor * material.RoughnessFactor) * PCG_InUnitSphere(seed));
     }
-    else
+    else // Diffuse reflection
     {
-		// Treat as pure dielectric/diffuse
         ray.Direction = normalize(PCG_InHemisphere(normal, seed));
-        rayColor *= material.Albedo;
+        rayColor *= material.BaseColorFactor.rgb;
     }
 }
 
 
 void HandleDielectricMaterial(inout Ray ray, inout float3 rayColor, const Material material, bool front_face, float3 normal, inout uint seed)
 {
-    float3 attenuation = material.Albedo; // For tinted glass
-
-	//Determine IOR Ratio and cosine angle
+    // Determine IOR Ratio and cosine angle
     float ior_ratio = front_face ? (1.0f / material.IOR) : material.IOR;
     float cos_theta = min(dot(-ray.Direction, normal), 1.0f);
     float sin_theta = sqrt(1.0f - cos_theta * cos_theta);
@@ -317,35 +332,19 @@ void HandleDielectricMaterial(inout Ray ray, inout float3 rayColor, const Materi
 
     if (cannot_refract || PCG_RandomFloat(seed) < reflectance)
     {
-        //reflection
+        // Reflection
         ray.Direction = reflect(ray.Direction, normal);
     }
     else
     {
-        // Handle refraction
+        // Refraction
         ray.Direction = refract_hlsl(ray.Direction, normal, ior_ratio);
-
-        // --- BEER'S LAW IMPLEMENTATION ---
-        if (front_face)
-        {
-            HitData exitHit = TraceRay(ray);
-            if (exitHit.ObjectIndex != -1)
-            {
-                float3 absorption = -material.AbsorptionColor * exitHit.HitDistance;
-                rayColor *= exp(absorption);
-                
-                bool exit_front_face = dot(ray.Direction, exitHit.HitNormal) < 0;
-                float3 exit_normal = exit_front_face ? exitHit.HitNormal : -exitHit.HitNormal;
-                ray.Origin = exitHit.HitPosition + exit_normal * 0.0001f;
-
-                ray.Direction = refract_hlsl(ray.Direction, exit_normal, material.IOR);
-            }
-        }
+        // Note: Beer's law logic removed as AbsorptionColor is not in the new material.
     }
-
-    ray.Direction = normalize(ray.Direction + material.Roughness * material.Roughness * PCG_InUnitSphere(seed)); //frosted glass effect
+    
+    // Apply roughness for frosted glass effect
+    ray.Direction = normalize(ray.Direction + material.RoughnessFactor * material.RoughnessFactor * PCG_InUnitSphere(seed));
 }
-
 float3 DispatchRay(Ray ray, inout uint seed)
 {
 
@@ -358,13 +357,13 @@ float3 DispatchRay(Ray ray, inout uint seed)
         HitData hitData = TraceRay(ray);
         if (hitData.ObjectIndex == -1)
         {
-            // float phi = atan2(ray.Direction.z, ray.Direction.x);
-            // float theta = asin(ray.Direction.y);
-            // float u = 1.0 - (phi + PI) / (2.0 * PI);
-            // float v = (theta + PI / 2.0) / PI;
-            // v = 1.0 - v;
-            // float4 envColorSample = g_EnvironmentTexture.Sample(g_StaticSampler, float2(u, v));
-            // light += envColorSample.rgb * rayColor;
+            float phi = atan2(ray.Direction.z, ray.Direction.x);
+            float theta = asin(ray.Direction.y);
+            float u = 1.0 - (phi + PI) / (2.0 * PI);
+            float v = (theta + PI / 2.0) / PI;
+            v = 1.0 - v;
+            float4 envColorSample = g_EnvironmentTexture.Sample(g_StaticSampler, float2(u, v));
+            light += envColorSample.rgb * rayColor;
             break;
         }
         
@@ -384,7 +383,7 @@ float3 DispatchRay(Ray ray, inout uint seed)
             break;
         }
         
-        light += material.EmissionColor * material.EmissionPower * rayColor;
+        light += material.EmissiveFactor * rayColor;
          
         bool front_face = dot(ray.Direction, hitData.HitNormal) < 0;
         float3 normal = front_face ? hitData.HitNormal : -hitData.HitNormal;

@@ -2,11 +2,12 @@
 #pragma once
 
 #include "../Application.h"
-
 #include "CoreHelper Files/Image.h"
 #include "CoreHelper Files/PipelineBuilderHelper.h"
 #include "CoreHelper Files/ShaderHelper.h"
+#include "CoreHelper Files/GpuBuffer.h"
 #include "CoreHelper Files/Helper.h"
+#include "CoreHelper Files/DescriptorTable.h"
 #include "RenderEngine Files/global.h"
 #include "../basicStructs.h"
 
@@ -67,9 +68,9 @@ private:
 	UINT8* m_pCbvDataBegin = nullptr;
 
 	// Scene geometry buffers (managed by the scene)
-	ComPtr<ID3D12Resource> m_sphereUpload, m_sphereBuffer;
-	ComPtr<ID3D12Resource> m_triangleUpload, m_triangleBuffer;
-	ComPtr<ID3D12Resource> m_materialUpload, m_materialBuffer;
+	ResizableBuffer m_sphereBuffer;
+	ResizableBuffer m_triangleBuffer;
+	ResizableBuffer m_materialBuffer;
 
 	// Pointers to resources managed by ResourceManager
 	Image* m_pAccumulationImage;
@@ -78,8 +79,8 @@ private:
 	Model* m_pQuadModel;
 
 	// Descriptors for our specific render passes
-	DescriptorAllocation m_computeDescriptorTable;
-	DescriptorAllocation m_finalPassSrvTable;
+	DescriptorTable m_computeDescriptorTable;
+	DescriptorTable m_finalPassSrvTable;
 
 	RenderEngine* m_pRenderEngine = nullptr;
 
@@ -89,11 +90,7 @@ private:
 	float mc_exposure = 0.5f;
 
 	// --- CPU-side scene data ---
-	struct SceneData
-	{
-		std::vector<Sphere> Spheres = {};
-		std::vector<Triangle> Triangles = {};
-		std::vector<Material> Materials = {};
-	};
-	SceneData m_sceneData;
+	std::vector<Sphere> m_spheres;
+	std::vector<Triangle> m_triangles;
+	std::vector<Material> m_materials;
 };

@@ -14,64 +14,21 @@ HRESULT SceneOne::Initialize(RenderEngine* pRenderEngine)
 	HRESULT hr = S_OK;
 	//Create Compute shader pipeline state 
 	{
-		D3D12_DESCRIPTOR_RANGE1 descriptorRangeCBV = {};
-		ZeroMemory(&descriptorRangeCBV, sizeof(D3D12_DESCRIPTOR_RANGE1));
-		descriptorRangeCBV.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-		descriptorRangeCBV.NumDescriptors = 1;
-		descriptorRangeCBV.BaseShaderRegister = 0;
-		descriptorRangeCBV.RegisterSpace = 0;
-		descriptorRangeCBV.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC;
-		descriptorRangeCBV.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		D3D12_DESCRIPTOR_RANGE1 ranges[4];
+		// Range 0: Constant Buffer (b0)
+		ranges[0] = { D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC };
+		// Range 1: UAVs (u0, u1)
+		ranges[1] = { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND };
+		// Range 2: Structured Buffer SRVs (t0, t1, t2)
+		ranges[2] = { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND };
+		// Range 3: Texture SRV (t3)
+		ranges[3] = { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND };
 
-		D3D12_DESCRIPTOR_RANGE1 descriptorRangeUAV = {};
-		ZeroMemory(&descriptorRangeUAV, sizeof(D3D12_DESCRIPTOR_RANGE1));
-		descriptorRangeUAV.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-		descriptorRangeUAV.NumDescriptors = 2;
-		descriptorRangeUAV.BaseShaderRegister = 0;
-		descriptorRangeUAV.RegisterSpace = 0;
-		descriptorRangeUAV.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE;
-		descriptorRangeUAV.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-		D3D12_DESCRIPTOR_RANGE1 descriptorRangeSRV = {};
-		ZeroMemory(&descriptorRangeSRV, sizeof(D3D12_DESCRIPTOR_RANGE1));
-		descriptorRangeSRV.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		descriptorRangeSRV.NumDescriptors = 3; // 3 structure buffers
-		descriptorRangeSRV.BaseShaderRegister = 0;
-		descriptorRangeSRV.RegisterSpace = 0;
-		descriptorRangeSRV.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-		D3D12_DESCRIPTOR_RANGE1 descriptorRangeTextureSRV = {};
-		ZeroMemory(&descriptorRangeTextureSRV, sizeof(D3D12_DESCRIPTOR_RANGE1));
-		descriptorRangeTextureSRV.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		descriptorRangeTextureSRV.NumDescriptors = 1; // 1 texture
-		descriptorRangeTextureSRV.BaseShaderRegister = 3;
-		descriptorRangeTextureSRV.RegisterSpace = 0;
-		descriptorRangeTextureSRV.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-		D3D12_ROOT_PARAMETER1 rootParameter[4];
-		ZeroMemory(&rootParameter[0], sizeof(D3D12_ROOT_PARAMETER1));
+		D3D12_ROOT_PARAMETER1 rootParameter[1];
 		rootParameter[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParameter[0].DescriptorTable.NumDescriptorRanges = 1;
-		rootParameter[0].DescriptorTable.pDescriptorRanges = &descriptorRangeCBV;
+		rootParameter[0].DescriptorTable.NumDescriptorRanges = _countof(ranges);
+		rootParameter[0].DescriptorTable.pDescriptorRanges = ranges;
 		rootParameter[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-		ZeroMemory(&rootParameter[1], sizeof(D3D12_ROOT_PARAMETER1));
-		rootParameter[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParameter[1].DescriptorTable.NumDescriptorRanges = 1;
-		rootParameter[1].DescriptorTable.pDescriptorRanges = &descriptorRangeUAV;
-		rootParameter[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-		ZeroMemory(&rootParameter[2], sizeof(D3D12_ROOT_PARAMETER1));
-		rootParameter[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParameter[2].DescriptorTable.NumDescriptorRanges = 1;
-		rootParameter[2].DescriptorTable.pDescriptorRanges = &descriptorRangeSRV;
-		rootParameter[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-		ZeroMemory(&rootParameter[3], sizeof(D3D12_ROOT_PARAMETER1));
-		rootParameter[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParameter[3].DescriptorTable.NumDescriptorRanges = 1;
-		rootParameter[3].DescriptorTable.pDescriptorRanges = &descriptorRangeTextureSRV;
-		rootParameter[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 		D3D12_STATIC_SAMPLER_DESC staticSampler = {};
 		CreateStaticSampler(staticSampler, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, 0, 0, D3D12_SHADER_VISIBILITY_ALL);
@@ -79,7 +36,7 @@ HRESULT SceneOne::Initialize(RenderEngine* pRenderEngine)
 
 		D3D12_ROOT_SIGNATURE_DESC1 rootSignatureDesc;
 		ZeroMemory(&rootSignatureDesc, sizeof(D3D12_ROOT_SIGNATURE_DESC1));
-		rootSignatureDesc.NumParameters = 4;
+		rootSignatureDesc.NumParameters = _countof(rootParameter);
 		rootSignatureDesc.pParameters = rootParameter;
 		rootSignatureDesc.NumStaticSamplers = 1;
 		rootSignatureDesc.pStaticSamplers = &staticSampler;
@@ -244,91 +201,46 @@ HRESULT SceneOne::InitializeResources(void)
 
 	// Load scene data
 	{
-		//white
-		Material tempMaterial;
-		tempMaterial.Albedo = XMFLOAT3(1.0f, 1.0f, 1.0f);
-		m_sceneData.Materials.push_back(tempMaterial);
-		//white
-		Material tempMaterial;
-		tempMaterial.Albedo = XMFLOAT3(0.0f, 0.0f, 0.0f);
-		m_sceneData.Materials.push_back(tempMaterial);
-		//red
-		tempMaterial.Albedo = XMFLOAT3(1.0f, 0.0f, 0.0f);
-		m_sceneData.Materials.push_back(tempMaterial);
-		//green
-		tempMaterial.Albedo = XMFLOAT3(0.0f, 1.0f, 0.0f);
-		m_sceneData.Materials.push_back(tempMaterial);
-		//blue
-		tempMaterial.Albedo = XMFLOAT3(0.0f, 0.0f, 1.0f);
-		m_sceneData.Materials.push_back(tempMaterial);
+		// 0: White Wall
+		m_materials.push_back({ {1.0f, 1.0f, 1.0f, 1.0f}, {0,0,0}, 0.0f, 0.8f });
+		// 1: Red Wall
+		m_materials.push_back({ {1.0f, 0.0f, 0.0f, 1.0f}, {0,0,0}, 0.0f, 0.8f });
+		// 2: Green Wall
+		m_materials.push_back({ {0.0f, 1.0f, 0.0f, 1.0f}, {0,0,0}, 0.0f, 0.8f });
+		// 3: Blue Wall
+		m_materials.push_back({ {0.0f, 0.0f, 1.0f, 1.0f}, {0,0,0}, 0.0f, 0.8f });
+		// 4: Light
+		m_materials.push_back({ {1.0f, 1.0f, 1.0f, 1.0f}, {2.0f, 2.0f, 2.0f}, 0.0f, 1.0f });
+		// 5: Sphere Material
+		m_materials.push_back({ {1.0f, 1.0f, 0.0f, 1.0f}, {0,0,0}, 0.0f, 0.1f });
 
-		//light
-		tempMaterial.Albedo = XMFLOAT3(1.0f, 1.0f, 1.0f);
-		tempMaterial.EmissionColor = XMFLOAT3(1.0f, 1.0f, 1.0f);
-		tempMaterial.EmissionPower = 2.0f;
-		m_sceneData.Materials.push_back(tempMaterial);
-		//spheres material
-		tempMaterial.Albedo = XMFLOAT3(1.0f, 1.0f, 0.0f);
-		tempMaterial.EmissionColor = XMFLOAT3(0.0f, 0.0f, 0.0f);
-		tempMaterial.EmissionPower = 0.0f;
-		m_sceneData.Materials.push_back(tempMaterial);
 	}
 	{
-		Sphere tempSphere;
-		tempSphere.Position = XMFLOAT3(-1.0f, 1.0f, 0.0f);
-		tempSphere.Radius = 0.75f;
-		tempSphere.MaterialIndex = 6;
-		m_sceneData.Spheres.push_back(tempSphere);
+		m_spheres = {
+			{ {-1.0f, 1.0f, 0.0f}, 0.75f, 5 },
+			{ { 1.0f, 1.0f, 0.0f}, 0.75f, 5 },
+		};
 
-		tempSphere.Position = XMFLOAT3(1.0f, 1.0f, 0.0f);
-		tempSphere.Radius = 0.75f;
-		tempSphere.MaterialIndex = 6;
-		m_sceneData.Spheres.push_back(tempSphere);
-	}
-	//cornell box
-	{
-		Triangle tri;
-		// Right wall (red)
-		tri.MaterialIndex = 2;
-		tri.v0 = XMFLOAT3(+2.0f, +6.0f, -2.0f); tri.v1 = XMFLOAT3(+2.0f, +6.0f, +2.0f); tri.v2 = XMFLOAT3(+2.0f, -0.0f, -2.0f);
-		m_sceneData.Triangles.push_back(tri);
-		tri.v0 = XMFLOAT3(+2.0f, -0.0f, -2.0f); tri.v1 = XMFLOAT3(+2.0f, +6.0f, +2.0f); tri.v2 = XMFLOAT3(+2.0f, -0.0f, +2.0f);
-		m_sceneData.Triangles.push_back(tri);
-
-		// Back wall (black)
-		tri.MaterialIndex = 1;
-		tri.v0 = XMFLOAT3(+2.0f, +6.0f, -2.0f); tri.v1 = XMFLOAT3(-2.0f, +6.0f, -2.0f); tri.v2 = XMFLOAT3(+2.0f, -0.0f, -2.0f);
-		m_sceneData.Triangles.push_back(tri);
-		tri.v0 = XMFLOAT3(+2.0f, -0.0f, -2.0f); tri.v1 = XMFLOAT3(-2.0f, +6.0f, -2.0f); tri.v2 = XMFLOAT3(-2.0f, -0.0f, -2.0f);
-		m_sceneData.Triangles.push_back(tri);
-
-		// Left wall (blue)
-		tri.MaterialIndex =4;
-		tri.v0 = XMFLOAT3(-2.0f, +6.0f, +2.0f); tri.v1 = XMFLOAT3(-2.0f, +6.0f, -2.0f); tri.v2 = XMFLOAT3(-2.0f, -0.0f, +2.0f);
-		m_sceneData.Triangles.push_back(tri);
-		tri.v0 = XMFLOAT3(-2.0f, -0.0f, +2.0f); tri.v1 = XMFLOAT3(-2.0f, +6.0f, -2.0f); tri.v2 = XMFLOAT3(-2.0f, -0.0f, -2.0f);
-		m_sceneData.Triangles.push_back(tri);
-
-		// Top wall (white)
-		tri.MaterialIndex = 0;
-		tri.v0 = XMFLOAT3(-2.0f, +6.0f, +2.0f); tri.v1 = XMFLOAT3(+2.0f, +6.0f, +2.0f); tri.v2 = XMFLOAT3(-2.0f, +6.0f, -2.0f);
-		m_sceneData.Triangles.push_back(tri);
-		tri.v0 = XMFLOAT3(-2.0f, +6.0f, -2.0f); tri.v1 = XMFLOAT3(+2.0f, +6.0f, +2.0f); tri.v2 = XMFLOAT3(+2.0f, +6.0f, -2.0f);
-		m_sceneData.Triangles.push_back(tri);
-
-		// Bottom wall (green)
-		tri.MaterialIndex = 3;
-		tri.v0 = XMFLOAT3(-2.0f, -0.0f, -2.0f); tri.v1 = XMFLOAT3(+2.0f, -0.0f, -2.0f); tri.v2 = XMFLOAT3(-2.0f, -0.0f, +2.0f);
-		m_sceneData.Triangles.push_back(tri);
-		tri.v0 = XMFLOAT3(-2.0f, -0.0f, +2.0f); tri.v1 = XMFLOAT3(+2.0f, -0.0f, -2.0f); tri.v2 = XMFLOAT3(+2.0f, -0.0f, +2.0f);
-		m_sceneData.Triangles.push_back(tri);
-
-		// Light
-		tri.MaterialIndex = 5;
-		tri.v0 = XMFLOAT3(-1.0f, +5.99f, +1.0f); tri.v1 = XMFLOAT3(+1.0f, +5.99f, +1.0f); tri.v2 = XMFLOAT3(-1.0f, +5.99f, -1.0f);
-		m_sceneData.Triangles.push_back(tri);
-		tri.v0 = XMFLOAT3(-1.0f, +5.99f, -1.0f); tri.v1 = XMFLOAT3(+1.0f, +5.99f, +1.0f); tri.v2 = XMFLOAT3(+1.0f, +5.99f, -1.0f);
-		m_sceneData.Triangles.push_back(tri);
+		m_triangles = {
+			// Right wall (red)
+			{ {+2.0f, +6.0f, -2.0f}, {+2.0f, +6.0f, +2.0f}, {+2.0f, -0.0f, -2.0f}, 1 },
+			{ {+2.0f, -0.0f, -2.0f}, {+2.0f, +6.0f, +2.0f}, {+2.0f, -0.0f, +2.0f}, 1 },
+			// Back wall (white)
+			{ {+2.0f, +6.0f, -2.0f}, {-2.0f, +6.0f, -2.0f}, {+2.0f, -0.0f, -2.0f}, 0 },
+			{ {+2.0f, -0.0f, -2.0f}, {-2.0f, +6.0f, -2.0f}, {-2.0f, -0.0f, -2.0f}, 0 },
+			// Left wall (blue)
+			{ {-2.0f, +6.0f, +2.0f}, {-2.0f, +6.0f, -2.0f}, {-2.0f, -0.0f, +2.0f}, 2 },
+			{ {-2.0f, -0.0f, +2.0f}, {-2.0f, +6.0f, -2.0f}, {-2.0f, -0.0f, -2.0f}, 2 },
+			// Top wall (white)
+			{ {-2.0f, +6.0f, +2.0f}, {+2.0f, +6.0f, +2.0f}, {-2.0f, +6.0f, -2.0f}, 0 },
+			{ {-2.0f, +6.0f, -2.0f}, {+2.0f, +6.0f, +2.0f}, {+2.0f, +6.0f, -2.0f}, 0 },
+			// Bottom wall (green)
+			{ {-2.0f, -0.0f, -2.0f}, {+2.0f, -0.0f, -2.0f}, {-2.0f, -0.0f, +2.0f}, 0 },
+			{ {-2.0f, -0.0f, +2.0f}, {+2.0f, -0.0f, -2.0f}, {+2.0f, -0.0f, +2.0f}, 0 },
+			// Light
+			{ {-1.0f, +5.99f, +1.0f}, {+1.0f, +5.99f, +1.0f}, {-1.0f, +5.99f, -1.0f}, 4 },
+			{ {-1.0f, +5.99f, -1.0f}, {+1.0f, +5.99f, +1.0f}, {+1.0f, +5.99f, -1.0f}, 4 },
+		};
 	}
 
 	return hr;
@@ -354,23 +266,18 @@ HRESULT SceneOne::InitializeComputeResources(void)
 
 	// Create GPU buffers for scene data
 	{
-		if (!m_sceneData.Spheres.empty())
-		{
-			CreateDefaultBuffer(pDevice, pCommandList, m_sceneData.Spheres.data(),
-				sizeof(Sphere) * m_sceneData.Spheres.size(), m_sphereUpload, m_sphereBuffer);
-			m_sphereBuffer->SetName(L"Sphere Buffer");
-		}
+		m_sphereBuffer.Stride = sizeof(Sphere);
+		m_sphereBuffer.Sync(m_pRenderEngine, m_pRenderEngine->m_commandList.Get(), m_spheres.data(), (UINT)m_spheres.size());
+		if (m_sphereBuffer.Resource) m_sphereBuffer.Resource->SetName(L"Sphere Buffer");
 
-		if (!m_sceneData.Triangles.empty())
-		{
-			CreateDefaultBuffer(pDevice, pCommandList, m_sceneData.Triangles.data(),
-				sizeof(Triangle) * m_sceneData.Triangles.size(), m_triangleUpload, m_triangleBuffer);
-			m_triangleBuffer->SetName(L"Triangle Buffer");
-		}
+		m_triangleBuffer.Stride = sizeof(Triangle);
+		m_triangleBuffer.Sync(m_pRenderEngine, m_pRenderEngine->m_commandList.Get(), m_triangles.data(), (UINT)m_triangles.size());
+		if (m_triangleBuffer.Resource) m_triangleBuffer.Resource->SetName(L"Triangle Buffer");
 
-		CreateDefaultBuffer(pDevice, pCommandList, m_sceneData.Materials.data(),
-			sizeof(Material) * m_sceneData.Materials.size(), m_materialUpload, m_materialBuffer);
-		m_materialBuffer->SetName(L"Material Buffer");
+		m_materialBuffer.Stride = sizeof(Material);
+		m_materialBuffer.Sync(m_pRenderEngine, m_pRenderEngine->m_commandList.Get(), m_materials.data(), (UINT)m_materials.size());
+		if (m_materialBuffer.Resource) m_materialBuffer.Resource->SetName(L"Material Buffer");
+
 	}
 
 	EXECUTE_AND_LOG_RETURN(CreateDescriptorTables());
@@ -408,70 +315,58 @@ HRESULT SceneOne::CreateDescriptorTables()
 		m_ConstantBufferView->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin));
 	}
 
-	m_computeDescriptorTable = resourceManager->m_cbvSrvUavAllocator.Allocate(7);
-	D3D12_CPU_DESCRIPTOR_HANDLE computeHeapHandle = m_computeDescriptorTable.CpuHandle;
-	UINT descriptorSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-	// 1. CBV (b0)
+	m_computeDescriptorTable = resourceManager->m_generalPurposeHeapAllocator.AllocateTable(7);
+	m_finalPassSrvTable = resourceManager->m_generalPurposeHeapAllocator.AllocateTable(1);
+	// Slot 0: CBV (b0)
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.BufferLocation = m_ConstantBufferView->GetGPUVirtualAddress();
 	cbvDesc.SizeInBytes = (sizeof(CBUFFER) + 255) & ~255;
-	pDevice->CreateConstantBufferView(&cbvDesc, computeHeapHandle);
-	computeHeapHandle.ptr += descriptorSize;
+	pDevice->CreateConstantBufferView(&cbvDesc, m_computeDescriptorTable.GetCpuHandle(0));
 
-	// 2. UAV for Accumulation (u0)
-	D3D12_UNORDERED_ACCESS_VIEW_DESC accumUavDesc = {};
-	accumUavDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	accumUavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-	pDevice->CreateUnorderedAccessView(m_pAccumulationImage->GetResource(), nullptr, &accumUavDesc, computeHeapHandle);
-	computeHeapHandle.ptr += descriptorSize;
+	// Slot 1: Accumulation UAV (u0)
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+	pDevice->CreateUnorderedAccessView(m_pAccumulationImage->GetResource(), nullptr, &uavDesc, m_computeDescriptorTable.GetCpuHandle(1));
 
-	// 3. UAV for Output (u1)
-	D3D12_UNORDERED_ACCESS_VIEW_DESC outputUavDesc = {};
-	outputUavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	outputUavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-	pDevice->CreateUnorderedAccessView(m_pOutputImage->GetResource(), nullptr, &outputUavDesc, computeHeapHandle);
-	computeHeapHandle.ptr += descriptorSize;
+	// Slot 2: Output UAV (u1)
+	uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	pDevice->CreateUnorderedAccessView(m_pOutputImage->GetResource(), nullptr, &uavDesc, m_computeDescriptorTable.GetCpuHandle(2));
 
-	// 4. SRV for Sphere Buffer (t0)
+	// Slot 3: Sphere SRV (t0)
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Buffer.NumElements = m_sceneData.Spheres.empty() ? 0 : (UINT)m_sceneData.Spheres.size();
-	srvDesc.Buffer.StructureByteStride = m_sceneData.Spheres.empty() ? 0 : sizeof(Sphere);
-	pDevice->CreateShaderResourceView(m_sceneData.Spheres.empty() ? nullptr : m_sphereBuffer.Get(), &srvDesc, computeHeapHandle);
-	computeHeapHandle.ptr += descriptorSize;
+	srvDesc.Buffer.NumElements = m_sphereBuffer.Size;
+	srvDesc.Buffer.StructureByteStride = m_sphereBuffer.Stride;
+	pDevice->CreateShaderResourceView(m_sphereBuffer.Resource.Get(), &srvDesc, m_computeDescriptorTable.GetCpuHandle(3));
 
-	// 5. SRV for Triangle Buffer (t1)
-	srvDesc.Buffer.NumElements = m_sceneData.Triangles.empty() ? 0 : (UINT)m_sceneData.Triangles.size();
-	srvDesc.Buffer.StructureByteStride = m_sceneData.Triangles.empty() ? 0 : sizeof(Triangle);
-	pDevice->CreateShaderResourceView(m_sceneData.Triangles.empty() ? nullptr : m_triangleBuffer.Get(), &srvDesc, computeHeapHandle);
-	computeHeapHandle.ptr += descriptorSize;
+	// Slot 4: Triangle SRV (t1)
+	srvDesc.Buffer.NumElements = m_triangleBuffer.Size;
+	srvDesc.Buffer.StructureByteStride = m_triangleBuffer.Stride;
+	pDevice->CreateShaderResourceView(m_triangleBuffer.Resource.Get(), &srvDesc, m_computeDescriptorTable.GetCpuHandle(4));
 
-	// 6. SRV for Material Buffer (t2)
-	srvDesc.Buffer.NumElements = (UINT)m_sceneData.Materials.size();
-	srvDesc.Buffer.StructureByteStride = sizeof(Material);
-	pDevice->CreateShaderResourceView(m_materialBuffer.Get(), &srvDesc, computeHeapHandle);
-	computeHeapHandle.ptr += descriptorSize;
+	// Slot 5: Material SRV (t2)
+	srvDesc.Buffer.NumElements = m_materialBuffer.Size;
+	srvDesc.Buffer.StructureByteStride = m_materialBuffer.Stride;
+	pDevice->CreateShaderResourceView(m_materialBuffer.Resource.Get(), &srvDesc, m_computeDescriptorTable.GetCpuHandle(5));
 
-	// 7. SRV for Environment texture (t3)
+	// Slot 6: Environment SRV (t3)
 	D3D12_SHADER_RESOURCE_VIEW_DESC envSrvDesc = {};
 	envSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	envSrvDesc.Format = m_pEnvironmentTexture->m_ResourceGPU->GetDesc().Format;
 	envSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	envSrvDesc.Texture2D.MostDetailedMip = 0;
 	envSrvDesc.Texture2D.MipLevels = m_pEnvironmentTexture->m_ResourceGPU->GetDesc().MipLevels;
-	pDevice->CreateShaderResourceView(m_pEnvironmentTexture->m_ResourceGPU.Get(), &envSrvDesc, computeHeapHandle);
+	pDevice->CreateShaderResourceView(m_pEnvironmentTexture->m_ResourceGPU.Get(), &envSrvDesc, m_computeDescriptorTable.GetCpuHandle(6));
 
-	// Create descriptor table for the final graphics pass
-	m_finalPassSrvTable = resourceManager->m_cbvSrvUavAllocator.Allocate(1);
+	// Populate Final Pass Descriptor Table
 	D3D12_SHADER_RESOURCE_VIEW_DESC finalSrvDesc = {};
 	finalSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	finalSrvDesc.Format = m_pOutputImage->GetResource()->GetDesc().Format;
 	finalSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	finalSrvDesc.Texture2D.MipLevels = 1;
-	pDevice->CreateShaderResourceView(m_pOutputImage->GetResource(), &finalSrvDesc, m_finalPassSrvTable.CpuHandle);
+	pDevice->CreateShaderResourceView(m_pOutputImage->GetResource(), &finalSrvDesc, m_finalPassSrvTable.GetCpuHandle(0));
 
 	return S_OK;
 }
@@ -485,27 +380,20 @@ void SceneOne::OnResize(UINT width, UINT height)
 
 	if (m_pOutputImage->GetWidth() != width || m_pOutputImage->GetHeight() != height)
 	{
-		m_pAccumulationImage->Resize(width, height);
-		m_pOutputImage->Resize(width, height);
+		ResourceManager::Get()->ResizeImage("Accumulation", width, height);
+		ResourceManager::Get()->ResizeImage("Output", width, height);
 
 		auto pDevice = m_pRenderEngine->GetDevice();
-		UINT descriptorSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE computeHeapHandle = m_computeDescriptorTable.CpuHandle;
-
-		// Skip CBV
-		computeHeapHandle.ptr += 1 * descriptorSize;
-
-		// Re-create UAV for Accumulation
+		// Slot 1: Accumulation UAV (u0)
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 		uavDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-		pDevice->CreateUnorderedAccessView(m_pAccumulationImage->GetResource(), nullptr, &uavDesc, computeHeapHandle);
-		computeHeapHandle.ptr += 1 * descriptorSize;
+		pDevice->CreateUnorderedAccessView(m_pAccumulationImage->GetResource(), nullptr, &uavDesc, m_computeDescriptorTable.GetCpuHandle(1));
 
-		// Re-create UAV for Output
+		// Slot 2: Output UAV (u1)
 		uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		pDevice->CreateUnorderedAccessView(m_pOutputImage->GetResource(), nullptr, &uavDesc, computeHeapHandle);
+		pDevice->CreateUnorderedAccessView(m_pOutputImage->GetResource(), nullptr, &uavDesc, m_computeDescriptorTable.GetCpuHandle(2));
 
 		// Re-create SRV for the final pass
 		D3D12_SHADER_RESOURCE_VIEW_DESC quadSrvDesc = {};
@@ -513,7 +401,7 @@ void SceneOne::OnResize(UINT width, UINT height)
 		quadSrvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		quadSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		quadSrvDesc.Texture2D.MipLevels = 1;
-		pDevice->CreateShaderResourceView(m_pOutputImage->GetResource(), &quadSrvDesc, m_finalPassSrvTable.CpuHandle);
+		pDevice->CreateShaderResourceView(m_pOutputImage->GetResource(), &quadSrvDesc, m_finalPassSrvTable.GetCpuHandle(0));
 	}
 
 	m_frameIndex = 0;
@@ -543,24 +431,38 @@ void SceneOne::PopulateCommandList(void)
 
 	if (m_sceneDataDirty)
 	{
-		auto updateBuffer = [&](ComPtr<ID3D12Resource>& buffer, ComPtr<ID3D12Resource>& uploader, const void* data, UINT size)
-			{
-				if (buffer)
-				{
-					UINT8* pData;
-					D3D12_RANGE readRange = { 0, 0 };
-					uploader->Map(0, &readRange, reinterpret_cast<void**>(&pData));
-					memcpy(pData, data, size);
-					uploader->Unmap(0, nullptr);
-					TransitionResource(cmdList, buffer.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
-					cmdList->CopyBufferRegion(buffer.Get(), 0, uploader.Get(), 0, size);
-					TransitionResource(cmdList, buffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-				}
-			};
+		m_sphereBuffer.Sync(m_pRenderEngine, cmdList, m_spheres.data(), (UINT)m_spheres.size());
+		m_triangleBuffer.Sync(m_pRenderEngine, cmdList, m_triangles.data(), (UINT)m_triangles.size());
+		m_materialBuffer.Sync(m_pRenderEngine, cmdList, m_materials.data(), (UINT)m_materials.size());
 
-		updateBuffer(m_sphereBuffer, m_sphereUpload, m_sceneData.Spheres.data(), sizeof(Sphere) * m_sceneData.Spheres.size());
-		updateBuffer(m_triangleBuffer, m_triangleUpload, m_sceneData.Triangles.data(), sizeof(Triangle) * m_sceneData.Triangles.size());
-		updateBuffer(m_materialBuffer, m_materialUpload, m_sceneData.Materials.data(), sizeof(Material) * m_sceneData.Materials.size());
+		// If a buffer was reallocated, its SRV needs to be updated.
+		if (m_sphereBuffer.GpuResourceDirty) {
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.Buffer.NumElements = m_sphereBuffer.Size;
+			srvDesc.Buffer.StructureByteStride = m_sphereBuffer.Stride;
+			m_pRenderEngine->GetDevice()->CreateShaderResourceView(m_sphereBuffer.Resource.Get(), &srvDesc, m_computeDescriptorTable.GetCpuHandle(3));
+		}
+		if (m_triangleBuffer.GpuResourceDirty) {
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.Buffer.NumElements = m_triangleBuffer.Size;
+			srvDesc.Buffer.StructureByteStride = m_triangleBuffer.Stride;
+			m_pRenderEngine->GetDevice()->CreateShaderResourceView(m_triangleBuffer.Resource.Get(), &srvDesc, m_computeDescriptorTable.GetCpuHandle(4));
+		}
+		if (m_materialBuffer.GpuResourceDirty) {
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.Buffer.NumElements = m_materialBuffer.Size;
+			srvDesc.Buffer.StructureByteStride = m_materialBuffer.Stride;
+			m_pRenderEngine->GetDevice()->CreateShaderResourceView(m_materialBuffer.Resource.Get(), &srvDesc, m_computeDescriptorTable.GetCpuHandle(5));
+		}
 
 		m_frameIndex = 0;
 		m_sceneDataDirty = false;
@@ -580,23 +482,11 @@ void SceneOne::PopulateCommandList(void)
 	constants.exposure = mc_exposure;
 	memcpy(m_pCbvDataBegin, &constants, sizeof(CBUFFER));
 
-	D3D12_GPU_DESCRIPTOR_HANDLE computeHeapHandle = m_computeDescriptorTable.GpuHandle;
-	// Root Param 0: CBV
-	cmdList->SetComputeRootDescriptorTable(0, computeHeapHandle);
-	computeHeapHandle.ptr += descriptorSize;
-	// Root Param 1: UAVs
-	cmdList->SetComputeRootDescriptorTable(1, computeHeapHandle);
-	computeHeapHandle.ptr += 2 * descriptorSize;
-	// Root Param 2: Buffer SRVs
-	cmdList->SetComputeRootDescriptorTable(2, computeHeapHandle);
-	computeHeapHandle.ptr += 3 * descriptorSize;
-	// Root Param 3: Texture SRVs
-	cmdList->SetComputeRootDescriptorTable(3, computeHeapHandle);
+	cmdList->SetComputeRootDescriptorTable(0, m_computeDescriptorTable.GetGpuHandle());
 
 	cmdList->Dispatch((width + 7) / 8, (height + 7) / 8, 1);
 
-	TransitionResource(cmdList, m_pOutputImage->GetResource(),
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	m_pRenderEngine->TransitionResource(cmdList, m_pOutputImage->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 	// --- Graphics Pass ---
 	m_pRenderEngine->TransitionResource(cmdList, m_pRenderEngine->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -604,7 +494,7 @@ void SceneOne::PopulateCommandList(void)
 	cmdList->SetPipelineState(m_finalTexturePSO.PipelineState.Get());
 	cmdList->SetGraphicsRootSignature(m_finalTexturePSO.rootSignature.Get());
 
-	cmdList->SetGraphicsRootDescriptorTable(0, m_finalPassSrvTable.GpuHandle);
+	cmdList->SetGraphicsRootDescriptorTable(0, m_finalPassSrvTable.GetGpuHandle());
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_pRenderEngine->m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	rtvHandle.ptr += m_pRenderEngine->m_frameIndex * m_pRenderEngine->m_rtvDescriptorSize;
@@ -618,8 +508,7 @@ void SceneOne::PopulateCommandList(void)
 
 	RenderModel(cmdList, m_pQuadModel);
 
-	TransitionResource(cmdList, m_pOutputImage->GetResource(),
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	m_pRenderEngine->TransitionResource(cmdList, m_pOutputImage->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 void SceneOne::Update(void)
@@ -637,26 +526,24 @@ void SceneOne::RenderImGui()
 
 	ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 	ImGui::Text("Scene Controles");
-	for (size_t i = 0; i < m_sceneData.Spheres.size(); i++)
+	for (size_t i = 0; i < m_spheres.size(); i++)
 	{
 		ImGui::PushID((int)i);
-		Sphere& sphere = m_sceneData.Spheres[i];
+		Sphere& sphere = m_spheres[i];
 		m_sceneDataDirty |= ImGui::DragFloat3("Position", reinterpret_cast<float*>(&sphere.Position), 0.1f);
 		m_sceneDataDirty |= ImGui::DragFloat("Radius", &sphere.Radius, 0.1f);
-		m_sceneDataDirty |= ImGui::DragInt("Material", &sphere.MaterialIndex, 1.0f, 0, (int)m_sceneData.Materials.size() - 1);
+		m_sceneDataDirty |= ImGui::DragInt("Material", &sphere.MaterialIndex, 1.0f, 0, (int)m_materials.size() - 1);
 		ImGui::Separator();
 		ImGui::PopID();
 	}
-	for (size_t i = 0; i < m_sceneData.Materials.size(); i++)
+	for (size_t i = 0; i < m_materials.size(); i++)
 	{
 		ImGui::PushID(1000 + (int)i); // Ensure unique ID from spheres
-		Material& material = m_sceneData.Materials[i];
-		m_sceneDataDirty |= ImGui::ColorEdit3("Albedo", reinterpret_cast<float*>(&material.Albedo));
-		m_sceneDataDirty |= ImGui::DragFloat("Roughness", &material.Roughness, 0.05f, 0.0f, 1.0f);
-		m_sceneDataDirty |= ImGui::DragFloat("Metallic", &material.Metallic, 0.05f, 0.0f, 1.0f);
-		m_sceneDataDirty |= ImGui::ColorEdit3("Emission Color", reinterpret_cast<float*>(&material.EmissionColor));
-		m_sceneDataDirty |= ImGui::DragFloat("Emission Power", &material.EmissionPower, 0.05f, 0.0f, FLT_MAX);
-		m_sceneDataDirty |= ImGui::ColorEdit3("Absorption Color", reinterpret_cast<float*>(&material.AbsorptionColor));
+		Material& material = m_materials[i];
+		m_sceneDataDirty |= ImGui::ColorEdit4("Base Color", reinterpret_cast<float*>(&material.BaseColorFactor));
+		m_sceneDataDirty |= ImGui::DragFloat("Roughness", &material.RoughnessFactor, 0.05f, 0.0f, 1.0f);
+		m_sceneDataDirty |= ImGui::DragFloat("Metallic", &material.MetallicFactor, 0.05f, 0.0f, 1.0f);
+		m_sceneDataDirty |= ImGui::ColorEdit3("Emission Color", reinterpret_cast<float*>(&material.EmissiveFactor));
 		m_sceneDataDirty |= ImGui::DragFloat("Transmission", &material.Transmission, 0.05f, 0.0f, 1.0f);
 		m_sceneDataDirty |= ImGui::DragFloat("IOR", &material.IOR, 0.01f, 0.0f, 20.0f);
 		ImGui::Separator();

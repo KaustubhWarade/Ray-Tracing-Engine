@@ -1,5 +1,3 @@
-
-
 // =========================================================================
 // STRUCTS
 // =========================================================================
@@ -7,28 +5,47 @@
 
 struct Material
 {
-    float3 Albedo;
-    float Roughness;
-    float3 EmissionColor;
-    float EmissionPower;
-    float3 AbsorptionColor;
-    float Metallic;
-    float Transmission;
+    float4 BaseColorFactor;
+    
+    float3 EmissiveFactor;
+    float MetallicFactor;
+
+    float RoughnessFactor;
     float IOR;
+    float Transmission;
+    int AlphaMode;
+    
+    float AlphaCutoff;
+    uint DoubleSided;
+    uint Unlit;
+    float ClearcoatFactor;
+    
+    float ClearcoatRoughnessFactor;
+    float3 SheenColorFactor;
+    
+    float SheenRoughnessFactor;
+    int BaseColorTextureIndex;
+    int MetallicRoughnessTextureIndex;
+    int NormalTextureIndex;
+    
+    int OcclusionTextureIndex;
+    int EmissiveTextureIndex;
+    int ClearcoatTextureIndex;
+    int ClearcoatRoughnessTextureIndex;
+    
+    int ClearcoatNormalTextureIndex;
+    int SheenColorTextureIndex;
+    int SheenRoughnessTextureIndex;
+    int TransmissionTextureIndex;
 };
 
-struct Sphere
-{
-    float3 Position;
-    float Radius;
-    int MaterialIndex;
-};
 
 struct Triangle
 {
     float3 v0, v1, v2; // Vertex positions
     int MaterialIndex;
     float3 n0, n1, n2; // Vertex normals
+    float2 tc0, tc1, tc2;
 };
 
 struct BVHNode
@@ -48,12 +65,22 @@ struct Ray
 struct HitData
 {
     float HitDistance;
-    int ObjectType;
-    int ObjectIndex;
+    int PrimitiveIndex;
+    int InstanceIndex;
     float3 HitPosition;
     float3 HitNormal;
+    float2 TexCoord;
 };
 
+struct ModelInstance
+{
+    float4x4 Transform;
+    float4x4 InverseTransform;
+    uint BaseTriangleIndex;
+    uint BaseNodeIndex;
+    uint MaterialOffset;
+    float _padding0;
+};
 
 
 // =========================================================================
@@ -70,20 +97,22 @@ cbuffer SceneConstants : register(b0)
     uint g_numBounces;
     uint g_numRaysPerPixel;
     float c_exposure;
+    uint g_useEnvMap;
 };
 
-StructuredBuffer<Sphere> g_Spheres : register(t0);
-StructuredBuffer<Triangle> g_Triangles : register(t1);
-StructuredBuffer<Material> g_Materials : register(t2);
-StructuredBuffer<BVHNode> g_BVH: register(t3);
-
+StructuredBuffer<Material> g_Materials : register(t0);
+StructuredBuffer<Triangle> g_UberTriangles : register(t1);
+StructuredBuffer<BVHNode> g_UberBLAS : register(t2);
+StructuredBuffer<BVHNode> g_TLAS : register(t3);
+StructuredBuffer<ModelInstance> g_Instances : register(t4);
 
 RWTexture2D<float4> g_AccumulationTexture : register(u0);
 RWTexture2D<float4> g_OutputTexture : register(u1);
 
-Texture2D g_EnvironmentTexture : register(t4);
+Texture2D g_EnvironmentTexture : register(t5);
 SamplerState g_StaticSampler : register(s0);
 
+Texture2D g_Textures[] : register(t0, space1);
 
 // =========================================================================
 // UTILITY AND PHYSICS FUNCTIONS
@@ -166,7 +195,6 @@ float3 LinearToSRGB(float3 rgb)
 	);
 }
 
-
 // =========================================================================
 // TRACE RAY FUNCTIONS
 // =========================================================================
@@ -175,8 +203,7 @@ HitData IntersectTriangle(Ray ray, Triangle tri, uint triIndex)
 {
     HitData hit;
     hit.HitDistance = -1.0f;
-    hit.ObjectIndex = -1;
-    hit.ObjectType = -1;
+    hit.PrimitiveIndex = -1;
 
     const float3 edge1 = tri.v1 - tri.v0;
     const float3 edge2 = tri.v2 - tri.v0;
@@ -186,15 +213,6 @@ HitData IntersectTriangle(Ray ray, Triangle tri, uint triIndex)
     // Check if ray is parallel to triangle
     if (a > -1e-6 && a < 1e-6) 
         return hit;
-    
-    if (tri.MaterialIndex == 6)
-    {
-        float3 normal = normalize(cross(edge1, edge2));
-        if (dot(ray.Direction, normal) < 0.0)
-        {
-            return hit; 
-        }
-    }
     
     float f = 1.0f / a;
     float3 s = ray.Origin - tri.v0;
@@ -216,9 +234,11 @@ HitData IntersectTriangle(Ray ray, Triangle tri, uint triIndex)
     {
         hit.HitDistance = t;
         hit.HitPosition = ray.Origin + ray.Direction * t;
-        hit.HitNormal = normalize(cross(edge1, edge2));
-        hit.ObjectIndex = triIndex;
-        hit.ObjectType = 1;
+        float w = 1.0f - u - v;
+        float3 interpolatedNormal = w * tri.n0 + u * tri.n1 + v * tri.n2;
+        hit.HitNormal = normalize(interpolatedNormal);
+        hit.TexCoord = w * tri.tc0 + u * tri.tc1 + v * tri.tc2;
+        hit.PrimitiveIndex = triIndex;
     }
     
     return hit;
@@ -236,145 +256,234 @@ bool RayAABB(Ray ray, float3 min_aabb, float3 max_aabb, out float hitDist)
     float t_enter = max(max(tmin.x, tmin.y), tmin.z);
     float t_exit = min(min(tmax.x, tmax.y), tmax.z);
     
-    hitDist = t_enter;
-    return t_exit >= t_enter && t_exit > 0;
+    if (t_exit >= t_enter && t_exit > 0)
+    {
+        hitDist = max(t_enter, 0.0f);
+        return true;
+    }
+    hitDist = 3.4e38f;
+    return false;
 }
 
-void BVHTraverse(Ray ray, inout HitData closestHit)
+HitData TraverseBLAS(Ray modelSpaceRay, uint baseNodeIndex, uint baseTriangleIndex)
 {
-   
-    int stack[64];
+    int stack[32];
     int stackPtr = 0;
-    stack[stackPtr++] = 0; 
+    stack[stackPtr++] = baseNodeIndex; // Start at the root of this model's BLAS
+    HitData closestHit;
+    closestHit.HitDistance = 3.4e38f;
+    closestHit.PrimitiveIndex = -1;
+    closestHit.InstanceIndex = -1;
+    closestHit.HitNormal = float3(0, 0, 0);
+    closestHit.HitPosition = float3(0, 0, 0);
 
     while (stackPtr > 0)
     {
         int nodeIndex = stack[--stackPtr];
-        BVHNode node = g_BVH[nodeIndex];
+        BVHNode node = g_UberBLAS[nodeIndex];
         
         float distToAABB;
-        if (RayAABB(ray, node.aabbMin, node.aabbMax, distToAABB))
+        if (RayAABB(modelSpaceRay, node.aabbMin, node.aabbMax, distToAABB))
         {
             if (distToAABB > closestHit.HitDistance)
                 continue;
 
-            if (node.triangleCount > 0) 
-            {// leaf node
+            if (node.triangleCount > 0)
+            {
                 for (int i = 0; i < node.triangleCount; ++i)
                 {
-                    uint triIndex = node.leftChildOrFirstTriangleIndex + i;
-                    HitData hit = IntersectTriangle(ray, g_Triangles[triIndex], triIndex);
+                    uint triIndex = baseTriangleIndex + node.leftChildOrFirstTriangleIndex + i;
+                    HitData hit = IntersectTriangle(modelSpaceRay, g_UberTriangles[triIndex], triIndex);
                     if (hit.HitDistance > 0 && hit.HitDistance < closestHit.HitDistance)
                     {
                         closestHit = hit;
                     }
                 }
             }
-            else //internal node
+            else
             {
-                               // This is the optimized traversal logic
-                BVHNode leftChild = g_BVH[node.leftChildOrFirstTriangleIndex];
-                BVHNode rightChild = g_BVH[node.leftChildOrFirstTriangleIndex + 1];
+                 // Calculate the GLOBAL indices of the two children.
+                uint leftChildIndex = node.leftChildOrFirstTriangleIndex;
+                uint rightChildIndex = leftChildIndex + 1;
+
+                BVHNode leftChild = g_UberBLAS[leftChildIndex];
+                BVHNode rightChild = g_UberBLAS[rightChildIndex];
+
+                float distLeft, distRight;
+                bool hitLeft = RayAABB(modelSpaceRay, leftChild.aabbMin, leftChild.aabbMax, distLeft);
+                bool hitRight = RayAABB(modelSpaceRay, rightChild.aabbMin, rightChild.aabbMax, distRight);
+                
+                if (hitLeft && distLeft >= closestHit.HitDistance)
+                {
+                    hitLeft = false; 
+                }
+                if (hitRight && distRight >= closestHit.HitDistance)
+                {
+                    hitRight = false; 
+                }
+
+                if (hitLeft && hitRight)
+                {
+                // Push the farther child first so the closer one is processed next
+                    if (distLeft < distRight)
+                    {
+                        stack[stackPtr++] = rightChildIndex; // Right child (farther)
+                        stack[stackPtr++] = leftChildIndex; // Left child (closer)
+                    }
+                    else
+                    {
+                        stack[stackPtr++] = leftChildIndex; // Left child (farther)
+                        stack[stackPtr++] = rightChildIndex; // Right child (closer)
+                    }
+                }
+                else if (hitLeft)
+                {
+                    stack[stackPtr++] = leftChildIndex;
+                }
+                else if (hitRight)
+                {
+                    stack[stackPtr++] = rightChildIndex;
+                }
+            }
+        }
+    }
+    return closestHit;
+
+}
+
+HitData TraceRay(Ray ray)
+{
+        
+    const bool DEBUG_VISUALIZE_TLAS = false;
+    
+    HitData closestHit;
+    closestHit.HitDistance = 3.4e38f;
+    closestHit.PrimitiveIndex = -1;
+    closestHit.InstanceIndex = -1;
+    closestHit.HitNormal = float3(0, 0, 0);
+    closestHit.HitPosition = float3(0, 0, 0);
+    
+    int tlasStack[64];
+    int tlasStackPtr = 0;
+    tlasStack[tlasStackPtr++] = 0; // Start at root of TLAS
+
+    while (tlasStackPtr > 0)
+    {
+        int nodeIndex = tlasStack[--tlasStackPtr];
+        BVHNode node = g_TLAS[nodeIndex];
+
+        float distToAABB;
+        if (RayAABB(ray, node.aabbMin, node.aabbMax, distToAABB))
+        {
+            if (distToAABB > closestHit.HitDistance)
+                continue;
+
+            if (node.triangleCount > 0) // Leaf node in TLAS points to an instance
+            {
+                if (DEBUG_VISUALIZE_TLAS)
+                {
+                    closestHit.HitDistance = distToAABB;
+                    closestHit.PrimitiveIndex = -2; // Use -2 as a special flag
+                    closestHit.HitPosition = ray.Origin + ray.Direction * distToAABB;
+                    uint instanceID = node.leftChildOrFirstTriangleIndex;
+                    closestHit.HitNormal = float3((float) instanceID/10.0f, (float) instanceID/10.0f, (float) instanceID/10.0f);
+                    return closestHit;
+                }
+                
+                uint instanceID = node.leftChildOrFirstTriangleIndex;
+                ModelInstance inst = g_Instances[instanceID];
+
+                // Transform ray into model's local space
+                Ray modelSpaceRay;
+                modelSpaceRay.Origin = mul(inst.InverseTransform, float4(ray.Origin, 1.0f)).xyz;
+                modelSpaceRay.Direction = mul(inst.InverseTransform, float4(ray.Direction, 0.0f)).xyz;
+
+                // Hit data for this instance's BLAS
+                HitData modelHit;
+                modelHit.HitDistance = 3.4e38f;
+                modelHit.PrimitiveIndex = -1; 
+                modelHit.InstanceIndex = -1;
+                modelHit.HitNormal = float3(0, 0, 0);
+                modelHit.HitPosition = float3(1, 0, 0);
+
+                modelHit = TraverseBLAS(modelSpaceRay, inst.BaseNodeIndex, inst.BaseTriangleIndex);
+                
+                // If we found a closer hit within this BLAS
+                if (modelHit.PrimitiveIndex != -1)
+                {
+                    // Transform hit point and normal back to world space
+                    float3 worldHitPos = mul(inst.Transform, float4(modelHit.HitPosition, 1.0f)).xyz;
+                    float worldHitDist = distance(ray.Origin, worldHitPos);
+
+                    if (worldHitDist < closestHit.HitDistance)
+                    {
+                        closestHit.HitDistance = worldHitDist;
+                        closestHit.HitPosition = worldHitPos;
+                        float4x4 inverseTranspose = transpose(inst.InverseTransform);
+                        closestHit.HitNormal = normalize(mul(inverseTranspose, float4(modelHit.HitNormal, 0.0f)).xyz);
+                        closestHit.PrimitiveIndex = modelHit.PrimitiveIndex;
+                        closestHit.InstanceIndex = instanceID;
+                    }
+                }
+                
+            }
+            else // Internal node in TLAS
+            {
+                uint leftChildIndex = node.leftChildOrFirstTriangleIndex;
+                uint rightChildIndex = leftChildIndex + 1;
+
+                BVHNode leftChild = g_TLAS[leftChildIndex];
+                BVHNode rightChild = g_TLAS[rightChildIndex];
 
                 float distLeft, distRight;
                 bool hitLeft = RayAABB(ray, leftChild.aabbMin, leftChild.aabbMax, distLeft);
                 bool hitRight = RayAABB(ray, rightChild.aabbMin, rightChild.aabbMax, distRight);
 
+                if (hitLeft && distLeft >= closestHit.HitDistance)
+                    hitLeft = false;
+                if (hitRight && distRight >= closestHit.HitDistance)
+                    hitRight = false;
+    
                 if (hitLeft && hitRight)
                 {
-                    // Push the farther child first so the closer one is processed next
                     if (distLeft < distRight)
                     {
-                        stack[stackPtr++] = node.leftChildOrFirstTriangleIndex + 1; // Right child (farther)
-                        stack[stackPtr++] = node.leftChildOrFirstTriangleIndex; // Left child (closer)
+                        tlasStack[tlasStackPtr++] = rightChildIndex;
+                        tlasStack[tlasStackPtr++] = leftChildIndex;
                     }
                     else
                     {
-                        stack[stackPtr++] = node.leftChildOrFirstTriangleIndex; // Left child (farther)
-                        stack[stackPtr++] = node.leftChildOrFirstTriangleIndex + 1; // Right child (closer)
+                        tlasStack[tlasStackPtr++] = leftChildIndex;
+                        tlasStack[tlasStackPtr++] = rightChildIndex;
                     }
                 }
                 else if (hitLeft)
                 {
-                    stack[stackPtr++] = node.leftChildOrFirstTriangleIndex;
+                    tlasStack[tlasStackPtr++] = leftChildIndex;
                 }
                 else if (hitRight)
                 {
-                    stack[stackPtr++] = node.leftChildOrFirstTriangleIndex + 1;
+                    tlasStack[tlasStackPtr++] = rightChildIndex;
                 }
             }
         }
-    }
-}
-
-HitData TraceRay(Ray ray)
-{
-    HitData closestHit;
-    closestHit.HitDistance = 3.4e38f;
-    closestHit.ObjectIndex = -1;
-    closestHit.ObjectType = -1;
-
-    // --- Sphere Intersection (remains the same) ---
-    uint numSpheres, sphereStride;
-    g_Spheres.GetDimensions(numSpheres, sphereStride);
-    for (uint i = 0; i < numSpheres; i++)
-    {
-        Sphere sphere = g_Spheres[i];
-        //... (sphere intersection logic as before)
-        float3 originToCenter = ray.Origin - sphere.Position;
-        float a = dot(ray.Direction, ray.Direction);
-        float b = 2.0f * dot(originToCenter, ray.Direction);
-        float c = dot(originToCenter, originToCenter) - (sphere.Radius * sphere.Radius);
-
-        float discriminant = b * b - 4.0f * a * c;
-        if (discriminant < 0.0f)
-            continue;
-
-        float closestT = (-b - sqrt(discriminant)) / (2.0f * a);
-
-        if (closestT > 0.0001f && closestT < closestHit.HitDistance)
-        {
-            closestHit.HitDistance = closestT;
-            closestHit.ObjectIndex = i;
-            closestHit.ObjectType = 0;
-        }
-    }
-    
-    BVHTraverse(ray, closestHit);
-    
-    // Finalize hit data (this part is mostly the same)
-    if (closestHit.ObjectIndex < 0)
-    {
-        closestHit.ObjectIndex = -1;
-        closestHit.ObjectType = -1;
-        return closestHit;
-    }
-    
-    if (closestHit.ObjectType == 0) // Sphere
-    {
-        closestHit.HitPosition = ray.Origin + ray.Direction * closestHit.HitDistance;
-        Sphere hitSphere = g_Spheres[closestHit.ObjectIndex];
-        closestHit.HitNormal = normalize(closestHit.HitPosition - hitSphere.Position);
     }
     
     return closestHit;
 }
 
-
-
 // =========================================================================
 // MATERIAL HANDLING
 // =========================================================================
 
-
 void HandleOpaqueMaterial(inout Ray ray, inout float3 rayColor, const Material material, float3 normal, inout uint seed)
 {
     // --- Metal ---
-    if (PCG_RandomFloat(seed) < material.Metallic) // Treat as pure metal
+    if (PCG_RandomFloat(seed) < material.MetallicFactor) // Treat as pure metal
     {
         float3 specularDir = reflect(ray.Direction, normal);
-        ray.Direction = normalize(specularDir + (material.Roughness * material.Roughness) * PCG_InUnitSphere(seed));
-        rayColor *= material.Albedo;
+        ray.Direction = normalize(specularDir + (material.RoughnessFactor * material.RoughnessFactor) * PCG_InUnitSphere(seed));
+        rayColor *= material.BaseColorFactor.rgb;
         return;
     }
 
@@ -386,20 +495,19 @@ void HandleOpaqueMaterial(inout Ray ray, inout float3 rayColor, const Material m
     if (PCG_RandomFloat(seed) < reflectance)
     {
         float3 specularDir = reflect(ray.Direction, normal);
-        ray.Direction = normalize(specularDir + (material.Roughness * material.Roughness) * PCG_InUnitSphere(seed));
+        ray.Direction = normalize(specularDir + (material.RoughnessFactor * material.RoughnessFactor) * PCG_InUnitSphere(seed));
     }
     else
     {
 		// Treat as pure dielectric/diffuse
         ray.Direction = normalize(PCG_InHemisphere(normal, seed));
-        rayColor *= material.Albedo;
+        rayColor *= material.BaseColorFactor.rgb;
     }
 }
 
-
 void HandleDielectricMaterial(inout Ray ray, inout float3 rayColor, const Material material, bool front_face, float3 normal, inout uint seed)
 {
-    float3 attenuation = material.Albedo; // For tinted glass
+    float3 attenuation = material.BaseColorFactor.rgb; // For tinted glass
 
 	//Determine IOR Ratio and cosine angle
     float ior_ratio = front_face ? (1.0f / material.IOR) : material.IOR;
@@ -418,26 +526,26 @@ void HandleDielectricMaterial(inout Ray ray, inout float3 rayColor, const Materi
     {
         // Handle refraction
         ray.Direction = refract_hlsl(ray.Direction, normal, ior_ratio);
-
+        rayColor *= material.BaseColorFactor.rgb;
         // --- BEER'S LAW IMPLEMENTATION ---
-        if (front_face)
-        {
-            HitData exitHit = TraceRay(ray);
-            if (exitHit.ObjectIndex != -1)
-            {
-                float3 absorption = -material.AbsorptionColor * exitHit.HitDistance;
-                rayColor *= exp(absorption);
-                
-                bool exit_front_face = dot(ray.Direction, exitHit.HitNormal) < 0;
-                float3 exit_normal = exit_front_face ? exitHit.HitNormal : -exitHit.HitNormal;
-                ray.Origin = exitHit.HitPosition + exit_normal * 0.0001f;
-
-                ray.Direction = refract_hlsl(ray.Direction, exit_normal, material.IOR);
-            }
-        }
+        //if (front_face)
+        //{
+        //    HitData exitHit = TraceRay(ray);
+        //    if (exitHit.PrimitiveIndex != -1)
+        //    {
+        //        float3 absorption = -material.AbsorptionColor * exitHit.HitDistance;
+        //        rayColor *= exp(absorption);
+        //        
+        //        bool exit_front_face = dot(ray.Direction, exitHit.HitNormal) < 0;
+        //        float3 exit_normal = exit_front_face ? exitHit.HitNormal : -exitHit.HitNormal;
+        //        ray.Origin = exitHit.HitPosition + exit_normal * 0.0001f;
+        //
+        //        ray.Direction = refract_hlsl(ray.Direction, exit_normal, material.IOR);
+        //    }
+        //}
     }
 
-    ray.Direction = normalize(ray.Direction + material.Roughness * material.Roughness * PCG_InUnitSphere(seed)); //frosted glass effect
+    ray.Direction = normalize(ray.Direction + material.RoughnessFactor * material.RoughnessFactor * PCG_InUnitSphere(seed)); //frosted glass effect
 }
 
 float3 DispatchRay(Ray ray, inout uint seed)
@@ -450,36 +558,53 @@ float3 DispatchRay(Ray ray, inout uint seed)
     {
 
         HitData hitData = TraceRay(ray);
-        if (hitData.ObjectIndex == -1)
+        
+        if (hitData.PrimitiveIndex == -2)
         {
-            // float phi = atan2(ray.Direction.z, ray.Direction.x);
-            // float theta = asin(ray.Direction.y);
-            // float u = 1.0 - (phi + PI) / (2.0 * PI);
-            // float v = (theta + PI / 2.0) / PI;
-            // v = 1.0 - v;
-            // float4 envColorSample = g_EnvironmentTexture.Sample(g_StaticSampler, float2(u, v));
-            // light += envColorSample.rgb * rayColor;
-            break;
+            return float3(hitData.HitPosition/5);
         }
-        //return hitData.HitNormal * 0.5f + 0.5f;
-        Material material;
-        if (hitData.ObjectType == 0) // Sphere
+        
+        
+        if (hitData.PrimitiveIndex == -1 && g_useEnvMap==1)
         {
-            Sphere hitSphere = g_Spheres[hitData.ObjectIndex];
-            material = g_Materials[hitSphere.MaterialIndex];
-        }
-        else if (hitData.ObjectType == 1) // Triangle
-        {
-            Triangle hitTriangle = g_Triangles[hitData.ObjectIndex];
-            material = g_Materials[hitTriangle.MaterialIndex];
-        }
-        else
-        {
+            float phi = atan2(ray.Direction.z, ray.Direction.x);
+            float theta = asin(ray.Direction.y);
+            float u = 1.0 - (phi + PI) / (2.0 * PI);
+            float v = (theta + PI / 2.0) / PI;
+            v = 1.0 - v;
+            float4 envColorSample = g_EnvironmentTexture.Sample(g_StaticSampler, float2(u, v));
+            light += envColorSample.rgb * rayColor;
             break;
         }
         
-        light += material.EmissionColor * material.EmissionPower * rayColor;
-         
+        Triangle hitTriangle = g_UberTriangles[hitData.PrimitiveIndex];
+        ModelInstance inst = g_Instances[hitData.InstanceIndex];
+        Material material = g_Materials[inst.MaterialOffset + hitTriangle.MaterialIndex];
+        
+        // adjust textures
+        float4 baseColor = material.BaseColorFactor;
+        if (material.BaseColorTextureIndex != -1)
+        {
+            uint idx = NonUniformResourceIndex(material.BaseColorTextureIndex);
+            baseColor *= g_Textures[idx].Sample(g_StaticSampler, hitData.TexCoord);
+        }
+        
+        float metallic = material.MetallicFactor;
+        float roughness = material.RoughnessFactor;
+        if (material.MetallicRoughnessTextureIndex != -1)
+        {
+            uint idx = NonUniformResourceIndex(material.MetallicRoughnessTextureIndex);
+            float4 mrSample = g_Textures[idx].Sample(g_StaticSampler, hitData.TexCoord);
+            roughness *= mrSample.g; 
+            metallic *= mrSample.b;
+        }
+        
+        light += material.EmissiveFactor * rayColor;
+        bool isLight = (material.EmissiveFactor.r > 0.0f || material.EmissiveFactor.g > 0.0f || material.EmissiveFactor.b > 0.0f);
+        if (!isLight || dot(ray.Direction, hitData.HitNormal) < 0.0)
+        {
+            light += material.BaseColorFactor.rgb * material.EmissiveFactor * rayColor;
+        }
         bool front_face = dot(ray.Direction, hitData.HitNormal) < 0;
         float3 normal = front_face ? hitData.HitNormal : -hitData.HitNormal;
 
@@ -501,7 +626,6 @@ float3 DispatchRay(Ray ray, inout uint seed)
                 break; // Terminate ray
             }
         }
-
     }
     return light;
 }

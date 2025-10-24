@@ -33,5 +33,6 @@
   <ItemGroup>
     <None Include="DefaultScene\FinalTexturePShader.hlsl" />
     <None Include="DefaultScene\FinalTextureVShader.hlsl" />
+    <None Include="E:\glTF-Sample-Models-main\glTF-Sample-Models-main\1.0\Monster\glTF-Binary\Monster.glb" />
   </ItemGroup>
 </Project>

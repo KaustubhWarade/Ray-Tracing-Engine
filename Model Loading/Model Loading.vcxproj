@@ -33,6 +33,7 @@
     <None Include="DefaultScene\FinalTextureVShader.hlsl">
       <FileType>Document</FileType>
     </None>
+    <None Include="E:\glTF-Sample-Models-main\glTF-Sample-Models-main\1.0\Monster\glTF-Binary\Monster.glb" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Engine\Engine.vcxproj">

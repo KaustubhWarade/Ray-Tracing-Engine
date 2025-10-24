@@ -3,35 +3,17 @@
 #include "../../RenderEngine Files/global.h"
 #include "../GeoMetryHelper.h"
 #include "../Texture.h"
+#include "../Mesh.h"
+#include "../RayTracingStructs.h"
+#include <map>
+
+using BLASHandle = size_t;
 
 class ResourceManager;
 
 namespace tinygltf {
     class Model;
-    struct Accessor;
-    struct Image;
 }
-
-//struct ModelVertex {
-//    DirectX::XMFLOAT3 Position;
-//    DirectX::XMFLOAT3 Normal;
-//    DirectX::XMFLOAT2 TexCoord;
-//};
-
-// Represents a material, linking to textures and PBR factors
-struct ModelMaterial {
-    DirectX::XMFLOAT4 BaseColorFactor; 
-    int BaseColorTextureIndex = -1;
-    // Add other PBR factors/texture indices as needed:
-    // float MetallicFactor;
-    // float RoughnessFactor;
-    // int MetallicRoughnessTextureIndex = -1;
-    // int NormalTextureIndex = -1;
-    // int OcclusionTextureIndex = -1;
-    // int EmissiveTextureIndex = -1;
-    // DirectX::XMFLOAT3 EmissiveFactor; // RGB
-    D3D12_GPU_DESCRIPTOR_HANDLE BaseColorTextureHandle{};
-};
 
 // Represents a primitive (a part of a mesh with a specific material)
 struct ModelPrimitive {
@@ -41,29 +23,117 @@ struct ModelPrimitive {
     int MaterialIndex = -1;
 };
 
-
 struct ModelMesh {
-    std::wstring Name;      
-    GeometryMesh GPUData;   
-    std::vector<ModelPrimitive> Primitives;
+    std::wstring Name;     
+
+    // --- CPU Data ---
     std::vector<ModelVertex> Vertices;
     std::vector<uint32_t> Indices;
+    std::vector<ModelPrimitive> Primitives;
+
+    // --- GPU Data (now directly part of the mesh) ---
+    Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferUploader = nullptr; // For cleanup
+    Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferGPU = nullptr;
+    UINT VertexBufferByteSize = 0;
+    UINT VertexByteStride = 0;
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferUploader = nullptr; // For cleanup
+    Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferGPU = nullptr;
+    UINT IndexBufferByteSize = 0;
+    DXGI_FORMAT IndexFormat = DXGI_FORMAT_R32_UINT;
+
+    // Helper functions
+    D3D12_VERTEX_BUFFER_VIEW VertexBufferView()
+    {
+        D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+        vertexBufferView.BufferLocation = VertexBufferGPU->GetGPUVirtualAddress();
+        vertexBufferView.StrideInBytes = VertexByteStride;
+        vertexBufferView.SizeInBytes = VertexBufferByteSize;
+        return vertexBufferView;
+    }
+
+    D3D12_INDEX_BUFFER_VIEW IndexBufferView() const
+    {
+        D3D12_INDEX_BUFFER_VIEW indexBufferView;
+        indexBufferView.BufferLocation = IndexBufferGPU->GetGPUVirtualAddress();
+        indexBufferView.Format = IndexFormat;
+        indexBufferView.SizeInBytes = IndexBufferByteSize;
+        return indexBufferView;
+    }
 };
 
-struct Model {
+enum LightType { Directional, Point, Spot };
+
+struct ModelLight {
+    std::string name;
+    LightType type;
+    XMFLOAT3 color{ 1.0f, 1.0f, 1.0f };
+    float intensity = 1.0f;
+    float range = 0.0f; // Infinite
+    float innerConeAngle = 0.0f;
+    float outerConeAngle = 0.785398f; // PI / 4
+};
+
+struct Model
+{
     std::vector<ModelMesh> Meshes;
-    std::vector<ModelMaterial> Materials;
-    std::vector<Texture*> Textures;
+    std::vector<Material> Materials;
+    std::vector<ModelLight> Lights;
+
+    std::vector<std::string> MaterialNames;
+    std::map<std::string, int> MaterialNameMap;
+
+    void EnsureDefaultMaterial()
+    {
+        if (Materials.empty())
+        {
+            Material defaultMat{};
+            defaultMat.BaseColorFactor = { 0.8f, 0.8f, 0.8f, 1.0f };
+            defaultMat.MetallicFactor = 0.1f;
+            defaultMat.RoughnessFactor = 0.8f;
+            Materials.push_back(defaultMat);
+        }
+    }
+};
+
+struct ModelInstance {
+    std::string Name = "";
+    Model* SourceModel = nullptr;
+
+    // Transformation for this specific instance
+    DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f };
+    DirectX::XMFLOAT3 Rotation = { 0.0f, 0.0f, 0.0f };
+    DirectX::XMFLOAT3 Scale = { 1.0f, 1.0f, 1.0f };
+    DirectX::XMMATRIX Transform = DirectX::XMMatrixIdentity();
+    DirectX::XMMATRIX InverseTransform = DirectX::XMMatrixIdentity();
+
+    uint32_t MaterialOffset = 0;
+};
+
+struct ModelInstanceGPUData
+{
+    DirectX::XMMATRIX Transform;
+    DirectX::XMMATRIX InverseTransform;
+    uint32_t BaseTriangleIndex;
+    uint32_t BaseNodeIndex;
+    uint32_t MaterialOffset;
+    float _padding0;
 };
 
 class ModelLoader {
 public:
-    ModelLoader();
-    ~ModelLoader(); 
+    ModelLoader() = default;;
+    ~ModelLoader() = default;;
 
     HRESULT LoadGLTF(ResourceManager* resourceManager, const std::string& filename, Model& outModel);
 
 private:
-    HRESULT GetBufferDataFromAccessor(const tinygltf::Model& gltfModel, const tinygltf::Accessor& accessor, const uint8_t** outData, size_t* outDataSize);
+    Texture* LoadTexture(
+        const tinygltf::Model& gltfModel,
+        int textureIndex,
+        bool isSrgb,
+        const std::filesystem::path& basePath,
+        ResourceManager* resourceManager
+    );
 
 };

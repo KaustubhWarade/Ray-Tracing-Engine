@@ -5,6 +5,7 @@
 #include "../IApplication.h"
 #include "../CoreHelper Files/DescriptorAllocator.h"
 #include "../CoreHelper Files/ResourceManager.h"
+#include "../CoreHelper Files/AccelerationStructureManager.h" 
 
 
 #define FRAMECOUNT 2
@@ -13,6 +14,11 @@ class RenderEngine
 {
 public:
     std::string name[256];
+
+    static RenderEngine* Get();
+    RenderEngine(const RenderEngine&) = delete;
+    void operator=(const RenderEngine&) = delete;
+
 
     bool HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -52,6 +58,8 @@ public:
     // Render Targets
     ComPtr<ID3D12Resource> m_renderTargets[FRAMECOUNT];
     std::unordered_map<ID3D12Resource *, D3D12_RESOURCE_STATES> m_resourceStates;
+    void TrackResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES initialState);
+    void UnTrackResource(ID3D12Resource* resource);
     void TransitionResource(
         ID3D12GraphicsCommandList* cmdList,
         ID3D12Resource* resource,
@@ -67,12 +75,16 @@ public:
     // Descriptor Sizes
     UINT m_rtvDescriptorSize;
 
-    DescriptorAllocator m_cbvSrvUavAllocator;
-    DescriptorAllocator& GetCbvSrvUavAllocator() { return m_cbvSrvUavAllocator; }
+    ComPtr<ID3D12DescriptorHeap> m_imguiSrvHeap;
+
+    ResourceManager* GetResourceManager() { return ResourceManager::Get(); }
+    AccelerationStructureManager* GetAccelManager() { return AccelerationStructureManager::Get(); }
 
     UINT m_frameIndex;
 
+    RenderEngine() = default;
 private:
+
     ComPtr<ID3D12Device> m_device;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     ComPtr<IDXGISwapChain3> m_swapChain;

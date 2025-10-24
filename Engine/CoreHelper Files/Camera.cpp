@@ -7,7 +7,6 @@ Camera::Camera()
 	m_VerticalFOV = 45.0f;
 	m_NearClip = 0.1f;
 	m_FarClip = 100.0f;
-	m_ForwardDirection = XMFLOAT3(0, 0, -1);
 	m_Position = XMFLOAT3(0.0f, 0.0f, 5.0f);
 	m_ForwardDirection = XMFLOAT3(0.0f, 0.0f, -1.0f);
 	m_UpDirection = XMFLOAT3(0.0f, 1.0f, 0.0f);
@@ -46,10 +45,10 @@ void Camera::OnMouseMove(float x, float y)
 		return;
 
 	float pitchDelta = -delta.y * GetRotationSpeed();
-	float yawDelta = -delta.x * GetRotationSpeed();
+	float yawDelta = delta.x * GetRotationSpeed();
 	XMVECTOR forward = XMLoadFloat3(&m_ForwardDirection);
 	XMVECTOR right = XMLoadFloat3(&m_RightDirection);
-	XMVECTOR up = XMLoadFloat3(&m_UpDirection);
+	XMVECTOR up= XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
 	XMVECTOR pitchQuat = XMQuaternionRotationAxis(right, pitchDelta);
 	XMVECTOR yawQuat = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), yawDelta);
@@ -57,7 +56,7 @@ void Camera::OnMouseMove(float x, float y)
 	XMVECTOR combinedQuat = XMQuaternionMultiply(pitchQuat, yawQuat);
 
 	forward = XMVector3Rotate(forward, combinedQuat);
-	XMStoreFloat3(&m_ForwardDirection, forward);
+	XMStoreFloat3(&m_ForwardDirection, XMVector3Normalize(forward));
 	right = XMVector3Cross(forward, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
 	XMStoreFloat3(&m_RightDirection, XMVector3Normalize(right));
 	up = XMVector3Rotate(up, combinedQuat);

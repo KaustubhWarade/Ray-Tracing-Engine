@@ -5,21 +5,24 @@
 #include <string>
 #include "CoreHelper Files/Helper.h"
 
-struct Material
+struct MaterialGPUData
 {
-	XMFLOAT3 Albedo{ 1.0f, 1.0f, 1.0f };
-	float Roughness = 1.0f;
+    std::string name;
+    // PBR Factors
+    XMFLOAT4 BaseColorFactor{ 1.0f, 1.0f, 1.0f, 1.0f };
+    XMFLOAT3 EmissiveFactor{ 0.0f, 0.0f, 0.0f };
+    float MetallicFactor = 0.0f;
 
-	XMFLOAT3 EmissionColor{ 0.0f, 0.0f, 0.0f };
-	float EmissionPower = 0.0f;
+    float RoughnessFactor = 1.0f;
+    float IOR = 1.5f;           
+    float Transmission = 0.0f;  
+    float _padding0;            
 
-	XMFLOAT3 AbsorptionColor = { 0.0f, 0.0f, 0.0f };
-	float Metallic = 0.0f;
-	float Transmission = 0.0f;
-	float IOR = 1.5f;
-
-
-	XMVECTOR GetEmission() const { return XMVectorScale(XMLoadFloat3(&EmissionColor), EmissionPower); }
+    // Bindless Texture Indices 
+    int BaseColorTextureIndex = -1;
+    int MetallicRoughnessTextureIndex = -1;
+    int NormalTextureIndex = -1;
+    int OcclusionTextureIndex = -1; 
 };
 
 struct Sphere

@@ -29,17 +29,20 @@ void createBlendDesc(D3D12_BLEND_DESC &blendDesc)
 
     D3D12_RENDER_TARGET_BLEND_DESC rtBlendDesc;
     ZeroMemory(&rtBlendDesc, sizeof(D3D12_RENDER_TARGET_BLEND_DESC));
-    rtBlendDesc.BlendEnable = FALSE;
+
+    rtBlendDesc.BlendEnable = TRUE; 
     rtBlendDesc.LogicOpEnable = FALSE;
     rtBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
     rtBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
     rtBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+
     rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
     rtBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
     rtBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-    rtBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-    blendDesc.RenderTarget[0] = rtBlendDesc; // Apply to the first render target
+    rtBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    blendDesc.RenderTarget[0] = rtBlendDesc;
+
 }
 
 void createRenderTargetBlendDesc(D3D12_RENDER_TARGET_BLEND_DESC &rtBlendDesc)

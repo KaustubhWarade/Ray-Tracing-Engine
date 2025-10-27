@@ -276,6 +276,7 @@ HitData TraverseBLAS(Ray modelSpaceRay, uint baseNodeIndex, uint baseTriangleInd
     closestHit.InstanceIndex = -1;
     closestHit.HitNormal = float3(0, 0, 0);
     closestHit.HitPosition = float3(0, 0, 0);
+    closestHit.TexCoord = float2(0, 0);
 
     while (stackPtr > 0)
     {
@@ -362,6 +363,7 @@ HitData TraceRay(Ray ray)
     closestHit.InstanceIndex = -1;
     closestHit.HitNormal = float3(0, 0, 0);
     closestHit.HitPosition = float3(0, 0, 0);
+    closestHit.TexCoord = float2(0, 0);
     
     int tlasStack[64];
     int tlasStackPtr = 0;
@@ -423,6 +425,8 @@ HitData TraceRay(Ray ray)
                         closestHit.HitNormal = normalize(mul(inverseTranspose, float4(modelHit.HitNormal, 0.0f)).xyz);
                         closestHit.PrimitiveIndex = modelHit.PrimitiveIndex;
                         closestHit.InstanceIndex = instanceID;
+                        closestHit.TexCoord = modelHit.TexCoord;
+                        
                     }
                 }
                 
@@ -476,40 +480,41 @@ HitData TraceRay(Ray ray)
 // MATERIAL HANDLING
 // =========================================================================
 
-void HandleOpaqueMaterial(inout Ray ray, inout float3 rayColor, const Material material, float3 normal, inout uint seed)
+void HandleOpaqueMaterial(inout Ray ray, inout float3 rayColor, const Material material, float4 baseColor, float metallic, float roughness, float3 normal, inout uint seed)
 {
     // --- Metal ---
-    if (PCG_RandomFloat(seed) < material.MetallicFactor) // Treat as pure metal
+    // Use the 'metallic' parameter instead of material.MetallicFactor
+    if (PCG_RandomFloat(seed) < metallic)
     {
         float3 specularDir = reflect(ray.Direction, normal);
-        ray.Direction = normalize(specularDir + (material.RoughnessFactor * material.RoughnessFactor) * PCG_InUnitSphere(seed));
-        rayColor *= material.BaseColorFactor.rgb;
+        // Use the 'roughness' parameter
+        ray.Direction = normalize(specularDir + (roughness * roughness) * PCG_InUnitSphere(seed));
+        // Use the 'baseColor' parameter
+        rayColor *= baseColor.rgb;
         return;
     }
 
-    // --- Dielectric plastic wood --
+    // --- Dielectric (Plastic, Wood, etc.) ---
     float cos_theta = min(dot(-ray.Direction, normal), 1.0f);
     float ior_ratio = 1.0f / material.IOR;
     float reflectance = schlick_reflectance(cos_theta, ior_ratio);
 
-    if (PCG_RandomFloat(seed) < reflectance)
+    if (PCG_RandomFloat(seed) < reflectance) // Specular reflection
     {
         float3 specularDir = reflect(ray.Direction, normal);
-        ray.Direction = normalize(specularDir + (material.RoughnessFactor * material.RoughnessFactor) * PCG_InUnitSphere(seed));
+        // Use the 'roughness' parameter
+        ray.Direction = normalize(specularDir + (roughness * roughness) * PCG_InUnitSphere(seed));
     }
-    else
+    else // Diffuse reflection
     {
-		// Treat as pure dielectric/diffuse
         ray.Direction = normalize(PCG_InHemisphere(normal, seed));
-        rayColor *= material.BaseColorFactor.rgb;
+        // Use the 'baseColor' parameter
+        rayColor *= baseColor.rgb;
     }
 }
-
-void HandleDielectricMaterial(inout Ray ray, inout float3 rayColor, const Material material, bool front_face, float3 normal, inout uint seed)
+void HandleDielectricMaterial(inout Ray ray, inout float3 rayColor, const Material material, float4 baseColor, float roughness, bool front_face, float3 normal, inout uint seed)
 {
-    float3 attenuation = material.BaseColorFactor.rgb; // For tinted glass
-
-	//Determine IOR Ratio and cosine angle
+    // Determine IOR Ratio and cosine angle
     float ior_ratio = front_face ? (1.0f / material.IOR) : material.IOR;
     float cos_theta = min(dot(-ray.Direction, normal), 1.0f);
     float sin_theta = sqrt(1.0f - cos_theta * cos_theta);
@@ -519,33 +524,19 @@ void HandleDielectricMaterial(inout Ray ray, inout float3 rayColor, const Materi
 
     if (cannot_refract || PCG_RandomFloat(seed) < reflectance)
     {
-        //reflection
+        // Reflection
         ray.Direction = reflect(ray.Direction, normal);
     }
     else
     {
-        // Handle refraction
+        // Refraction
         ray.Direction = refract_hlsl(ray.Direction, normal, ior_ratio);
-        rayColor *= material.BaseColorFactor.rgb;
-        // --- BEER'S LAW IMPLEMENTATION ---
-        //if (front_face)
-        //{
-        //    HitData exitHit = TraceRay(ray);
-        //    if (exitHit.PrimitiveIndex != -1)
-        //    {
-        //        float3 absorption = -material.AbsorptionColor * exitHit.HitDistance;
-        //        rayColor *= exp(absorption);
-        //        
-        //        bool exit_front_face = dot(ray.Direction, exitHit.HitNormal) < 0;
-        //        float3 exit_normal = exit_front_face ? exitHit.HitNormal : -exitHit.HitNormal;
-        //        ray.Origin = exitHit.HitPosition + exit_normal * 0.0001f;
-        //
-        //        ray.Direction = refract_hlsl(ray.Direction, exit_normal, material.IOR);
-        //    }
-        //}
+        // Use the 'baseColor' for tinting the glass
+        rayColor *= baseColor.rgb;
     }
-
-    ray.Direction = normalize(ray.Direction + material.RoughnessFactor * material.RoughnessFactor * PCG_InUnitSphere(seed)); //frosted glass effect
+    
+    // Use 'roughness' for a frosted glass effect
+    ray.Direction = normalize(ray.Direction + roughness * roughness * PCG_InUnitSphere(seed));
 }
 
 float3 DispatchRay(Ray ray, inout uint seed)
@@ -563,7 +554,6 @@ float3 DispatchRay(Ray ray, inout uint seed)
         {
             return float3(hitData.HitPosition/5);
         }
-        
         
         if (hitData.PrimitiveIndex == -1 && g_useEnvMap==1)
         {
@@ -599,12 +589,15 @@ float3 DispatchRay(Ray ray, inout uint seed)
             metallic *= mrSample.b;
         }
         
-        light += material.EmissiveFactor * rayColor;
-        bool isLight = (material.EmissiveFactor.r > 0.0f || material.EmissiveFactor.g > 0.0f || material.EmissiveFactor.b > 0.0f);
-        if (!isLight || dot(ray.Direction, hitData.HitNormal) < 0.0)
+        float3 emissive = material.EmissiveFactor;
+        if (material.EmissiveTextureIndex != -1)
         {
-            light += material.BaseColorFactor.rgb * material.EmissiveFactor * rayColor;
+            uint idx = NonUniformResourceIndex(material.EmissiveTextureIndex);
+            emissive *= g_Textures[idx].Sample(g_StaticSampler, hitData.TexCoord).rgb;
         }
+
+        light += emissive * rayColor;
+        
         bool front_face = dot(ray.Direction, hitData.HitNormal) < 0;
         float3 normal = front_face ? hitData.HitNormal : -hitData.HitNormal;
 
@@ -612,11 +605,11 @@ float3 DispatchRay(Ray ray, inout uint seed)
 
         if (material.Transmission > 0.0f)
         {
-            HandleDielectricMaterial(ray, rayColor, material, front_face, normal, seed);
+            HandleDielectricMaterial(ray, rayColor, material, baseColor, roughness, front_face, normal, seed);
         }
         else
         {
-            HandleOpaqueMaterial(ray, rayColor, material, normal, seed);
+            HandleOpaqueMaterial(ray, rayColor, material, baseColor, metallic, roughness, normal, seed);
         }
         
         if (i > 2)

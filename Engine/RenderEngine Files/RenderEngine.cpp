@@ -19,15 +19,6 @@ bool RenderEngine::HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 		return true;
 	}
 
-	if (m_camera.HandleWindowsMessage(message, wParam, lParam))
-	{
-		if (m_pApplication)
-		{
-			m_pApplication->OnViewChanged();
-		}
-		return true; 
-	}
-
 	if (m_pApplication)
 	{
 		if (m_pApplication->HandleMessage(message, wParam, lParam))

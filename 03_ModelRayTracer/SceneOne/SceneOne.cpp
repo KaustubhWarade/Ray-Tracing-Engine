@@ -183,7 +183,7 @@ HRESULT SceneOne::Initialize(RenderEngine* pRenderEngine)
 	EXECUTE_AND_LOG_RETURN(InitializeDescriptorTables());
 
 
-	m_pRenderEngine->m_camera.SetPosition(0.0f, 3.0f, 10.0f);
+	m_camera.SetPosition(0.0f, 3.0f, 10.0f);
 
 	return hr;
 }
@@ -467,7 +467,7 @@ void SceneOne::OnResize(UINT width, UINT height)
 {
 	if (m_pRenderEngine)
 	{
-		m_pRenderEngine->m_camera.OnResize(width, height);
+		m_camera.OnResize(width, height);
 	}
 
 	if (m_pOutputImage->GetWidth() != width || m_pOutputImage->GetHeight() != height)
@@ -483,6 +483,11 @@ void SceneOne::OnResize(UINT width, UINT height)
 
 bool SceneOne::HandleMessage(UINT message, WPARAM wParam, LPARAM lParam)
 {
+	if (m_camera.HandleWindowsMessage(message, wParam, lParam))
+	{
+		OnViewChanged();
+		return true;
+	}
 
 	return false;
 }
@@ -538,10 +543,10 @@ void SceneOne::PopulateCommandList(void)
 	cmdList->SetComputeRootSignature(m_computePSO.rootSignature.Get());
 
 	CBUFFER constants;
-	constants.CameraPosition = m_pRenderEngine->m_camera.GetPosition3f();
+	constants.CameraPosition = m_camera.GetPosition3f();
 	constants.FrameIndex = m_frameIndex;
-	constants.InverseView = m_pRenderEngine->m_camera.GetInverseView();
-	constants.InverseProjection = m_pRenderEngine->m_camera.GetInverseProjection();
+	constants.InverseView = m_camera.GetInverseView();
+	constants.InverseProjection = m_camera.GetInverseProjection();
 	constants.numBounces = mc_numBounces;
 	constants.numRaysPerPixel = mc_numRaysPerPixel;
 	constants.exposure = mc_exposure;
@@ -612,6 +617,13 @@ void SceneOne::Update(void)
 
 void SceneOne::RenderImGui()
 {
+	ImGui::Begin("Generic Data", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+	ImGui::Text("Render Time : %.3fms", m_LastRenderTime);
+	XMFLOAT3 pos = m_camera.GetPosition3f();
+	ImGui::Text("Camera Position : (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z);
+	ImGui::Text("Camera Forward Direction : (%.2f, %.2f, %.2f)", m_camera.GetForwardDirection3f().x, m_camera.GetForwardDirection3f().y, m_camera.GetForwardDirection3f().z);
+	ImGui::End();
+
 	ImGui::Begin("RayTracer Specifications", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 	m_sceneDataDirty |= ImGui::DragInt("Number Of Bounces", &mc_numBounces, 1.0f, 1, 100);
 	m_sceneDataDirty |= ImGui::DragInt("Rays Per Pixel", &mc_numRaysPerPixel, 1.0f, 1, 100);

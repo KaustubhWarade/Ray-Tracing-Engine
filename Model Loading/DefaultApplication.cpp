@@ -37,6 +37,12 @@ void Application::OnResize(UINT width, UINT height)
 
 bool Application::HandleMessage(UINT message, WPARAM wParam, LPARAM lParam)
 {
+	ImGuiIO& io = ImGui::GetIO();
+	if (io.WantCaptureMouse)
+	{
+		return true;
+	}
+
 	// this is Fir handling any user input by default campera and imgui is handled
 	if (m_pCurrentScene)
 	{
@@ -84,14 +90,6 @@ void Application::Update(void)
 
 void Application::RenderImGui()
 {
-	//basic ImGui Enabler
-	ImGui::Begin("Welcome to My Renddering Engine", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-	ImGui::Text("Render Time : %.3fms", m_LastRenderTime);
-	XMFLOAT3 pos = m_pRenderer->m_camera.GetPosition3f();
-	ImGui::Text("Camera Position : (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z);
-	ImGui::Text("Camera Forward Direction : (%.2f, %.2f, %.2f)", m_pRenderer->m_camera.GetForwardDirection3f().x, m_pRenderer->m_camera.GetForwardDirection3f().y, m_pRenderer->m_camera.GetForwardDirection3f().z);
-
-	ImGui::End();
 	//add scene-wise ImGui
 	if (m_pCurrentScene)
 	{

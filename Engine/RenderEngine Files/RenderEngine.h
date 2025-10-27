@@ -69,9 +69,6 @@ public:
     ComPtr<ID3D12Resource> m_depthStencilBuffer;
     ComPtr<ID3D12DescriptorHeap> m_dsbHeap;
 
-    // Camera for rendering
-    Camera m_camera;
-
     // Descriptor Sizes
     UINT m_rtvDescriptorSize;
 

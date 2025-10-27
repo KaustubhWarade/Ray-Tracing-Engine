@@ -6,6 +6,9 @@
 #include "CoreHelper Files/PipelineBuilderHelper.h"
 #include "CoreHelper Files/ShaderHelper.h"
 #include "CoreHelper Files/DescriptorAllocator.h"
+#include "CoreHelper Files/DescriptorTable.h"
+#include "CoreHelper Files/Model Loader/ModelLoader.h"
+#include "CoreHelper Files/Camera.h"
 #include "RenderEngine Files/global.h"
 
 #include <vector>
@@ -44,6 +47,8 @@ public:
 	//Feel free to make changes here
 
 private:
+	// Camera for rendering
+	Camera m_camera;
 
 	struct CBUFFER
 	{
@@ -53,7 +58,7 @@ private:
 	};
 
 	ComPtr<ID3D12Resource> m_constantBufferResource;
-	DescriptorAllocation m_DescriptorHeapStart;
+	DescriptorTable m_constantBufferTable;
 	UINT8* m_CBVHeapStartPointer;
 	CBUFFER m_constantBufferData;
 
@@ -63,7 +68,7 @@ private:
 
 	SHADER_DATA m_finalShader;
 	PipeLineStateObject m_finalTexturePSO;
-	GeometryMesh m_cube;
+	Model* m_pCubeModel = nullptr;
 
 	// --- Engine Dependencies ---
 	// A pointer to the main RenderEngine, providing access to the device, command list, etc.

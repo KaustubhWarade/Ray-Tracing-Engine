@@ -72,11 +72,7 @@ void Application::Update(void)
 
 void Application::RenderImGui()
 {
-	ImGui::Begin("Ray Tracer", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-	ImGui::Text("Render Time : %.3fms", m_LastRenderTime);
-	XMFLOAT3 pos = m_pRenderer->m_camera.GetPosition3f();
-	ImGui::Text("Camera Position : (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z);
-	ImGui::Text("Camera Forward Direction : (%.2f, %.2f, %.2f)", m_pRenderer->m_camera.GetForwardDirection3f().x, m_pRenderer->m_camera.GetForwardDirection3f().y, m_pRenderer->m_camera.GetForwardDirection3f().z);
+	ImGui::Begin("Application", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
 	const char* currentSceneNameCStr = m_CurrentSceneName.c_str();
 

@@ -7,6 +7,7 @@
 #include "CoreHelper Files/ShaderHelper.h"
 #include "CoreHelper Files/DescriptorAllocator.h"
 #include "CoreHelper Files/DescriptorTable.h"
+#include "CoreHelper Files/Camera.h"
 #include "RenderEngine Files/global.h"
 #include "CoreHelper Files/Model Loader/ModelLoader.h"
 #include "CoreHelper Files/AccelerationStructureManager.h"
@@ -65,6 +66,9 @@ public:
 
 private:
 
+	// Camera for rendering
+	Camera m_camera;
+
 	struct CBUFFER
 	{
 		DirectX::XMMATRIX worldMatrix;
@@ -97,6 +101,25 @@ private:
 	std::string m_currentModelName;
 	PipeLineStateObject m_finalTexturePSO;
 
+	// ****** picking ******
+
+	ComPtr<ID3D12Resource> m_pickingTexture;
+	ComPtr<ID3D12DescriptorHeap> m_pickingRtvHeap;
+	ComPtr<ID3D12Resource> m_pickingReadbackBuffer;
+
+	PipeLineStateObject m_pickerPSO;
+	SHADER_DATA m_pickingShader;
+
+	bool m_performPicking = false;
+	POINT m_mouseClickPos = {};
+	POINT m_mouseDownPos = {};
+
+	// visualize texxture
+	bool m_bVisualizePicking = false;
+	SHADER_DATA m_visualizeShader;
+	PipeLineStateObject m_visualizePSO;
+	DescriptorHandle m_pickingSrvHandle;
+
 	Model* m_pModel;
 	BLASStats m_blasStats;
 
@@ -108,6 +131,7 @@ private:
 
 	int m_selectedMaterialIndex = 0;
 	bool m_materialsDirty = false;
+
 	MaterialDebugView m_debugView = MaterialDebugView::PBR;
 	PreviewMeshType m_previewMeshType = PreviewMeshType::Sphere;
 

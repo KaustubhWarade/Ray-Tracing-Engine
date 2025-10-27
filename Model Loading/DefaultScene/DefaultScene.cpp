@@ -135,10 +135,6 @@ HRESULT DefaultScene::Initialize(RenderEngine* pRenderEngine)
 	D3D12_BLEND_DESC blendDesc;
 	createBlendDesc(blendDesc);
 
-	// Set up blending for the first render target (RT[0])
-	D3D12_RENDER_TARGET_BLEND_DESC rtBlendDesc;
-	createRenderTargetBlendDesc(rtBlendDesc);
-
 	// Describe and create the graphics pipeline state object (PSO).
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 	createPipelineStateDesc(psoDesc,
@@ -154,6 +150,19 @@ HRESULT DefaultScene::Initialize(RenderEngine* pRenderEngine)
 
 	m_constantBufferTable = ResourceManager::Get()->m_generalPurposeHeapAllocator.AllocateTable(1);
 	m_materialSrvTable = ResourceManager::Get()->m_generalPurposeHeapAllocator.AllocateTable(1);
+
+
+	// --- Initialize resources for the picking pass ---
+
+	EXECUTE_AND_LOG_RETURN(compileVSShader(L"DefaultScene/PickingVShader.hlsl", m_pickingShader));
+	EXECUTE_AND_LOG_RETURN(compilePSShader(L"DefaultScene/PickingPShader.hlsl", m_pickingShader));
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC picker_psoDesc = {};
+	createPipelineStateDesc(picker_psoDesc, d3dInputElementDesc, _countof(d3dInputElementDesc), m_finalTexturePSO.rootSignature.Get(), m_pickingShader, rasterizerDesc, blendDesc, depthStencilDesc);
+	picker_psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	EXECUTE_AND_LOG_RETURN(pDevice->CreateGraphicsPipelineState(&picker_psoDesc, IID_PPV_ARGS(&m_pickerPSO.PipelineState)));
+
 
 	//CBV
 	{
@@ -240,29 +249,19 @@ HRESULT DefaultScene::Initialize(RenderEngine* pRenderEngine)
 		memcpy(m_previewCBVHeapStartPointer, &m_previewConstantBufferData, sizeof(m_previewConstantBufferData));
 	}
 
-	// hardcode model loading
-	//ResourceManager::Get()->LoadModel("my_model", "assets/model.glb");
-	//EXECUTE_AND_LOG_RETURN(ResourceManager::Get()->LoadModel("Knight_model", "DefaultScene/Fox.glb"));
-	//m_pModel = ResourceManager::Get()->GetModel("Knight_model");
-	//if (!m_pModel)
-	//{
-	//	fprintf(gpFile, "Failed to get model 'Knight_model' from ResourceManager.\n");
-	//	return E_FAIL; // Failed to load the model, abort initialization.
-	//}
-
 	// texture preview
-	// 1. create sphere mesh
+	// create sphere mesh
 	CreateSphereMesh(1.0f, 32, 32);
 	m_pSphereModel = ResourceManager::Get()->GetModel("material_preview_sphere");
 	CreateQuadMesh(1.5f);
 	m_pQuadModel = ResourceManager::Get()->GetModel("material_preview_quad");
-	//create image for render target
+	// create image for render target
 	m_materialPreviewImage = std::make_unique<Image>();
 	UINT previewSize = 256;
-	EXECUTE_AND_LOG_RETURN(m_materialPreviewImage->Initialize(pDevice, m_pRenderEngine->m_commandList.Get(), &ResourceManager::Get()->m_generalPurposeHeapAllocator, previewSize, previewSize, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET));
+	EXECUTE_AND_LOG_RETURN(m_materialPreviewImage->Initialize(pDevice, m_pRenderEngine->m_commandList.Get(), &ResourceManager::Get()->m_generalPurposeHeapAllocator, previewSize, previewSize, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET));
 	m_pRenderEngine->TrackResource(m_materialPreviewImage->GetResource(), D3D12_RESOURCE_STATE_COMMON);
 
-	// 3. Create the depth buffer for the preview
+	// Create the depth buffer for the preview
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
 	dsvHeapDesc.NumDescriptors = 1;
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
@@ -291,9 +290,59 @@ HRESULT DefaultScene::Initialize(RenderEngine* pRenderEngine)
 
 	pDevice->CreateDepthStencilView(m_previewDepthBuffer.Get(), nullptr, m_previewDsvHeap->GetCPUDescriptorHandleForHeapStart());
 
-	// 4. Create viewport and scissor rect for the preview
+	// Create viewport and scissor rect for the preview
 	m_previewViewport = { 0.0f, 0.0f, (float)previewSize, (float)previewSize, 0.0f, 1.0f };
 	m_previewScissorRect = { 0, 0, (LONG)previewSize, (LONG)previewSize };
+
+	// ***** VizualizeTexture ******
+	EXECUTE_AND_LOG_RETURN(compileVSShader(L"DefaultScene/VisualizeTextureVShader.hlsl", m_visualizeShader));
+	EXECUTE_AND_LOG_RETURN(compilePSShader(L"DefaultScene/VisualizeTexturePShader.hlsl", m_visualizeShader));
+
+	D3D12_DESCRIPTOR_RANGE1 srvRange = {};
+	srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	srvRange.NumDescriptors = 1;
+	srvRange.BaseShaderRegister = 0; 
+	srvRange.RegisterSpace = 0;
+	srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	D3D12_ROOT_PARAMETER1 visRootParam = {};
+	visRootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	visRootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	visRootParam.DescriptorTable.NumDescriptorRanges = 1;
+	visRootParam.DescriptorTable.pDescriptorRanges = &srvRange;
+
+	D3D12_STATIC_SAMPLER_DESC pointSampler = {};
+	CreateStaticSampler(pointSampler, D3D12_FILTER_MIN_MAG_MIP_POINT, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+
+	D3D12_ROOT_SIGNATURE_DESC1 visRootSigDesc = {};
+	visRootSigDesc.NumParameters = 1;
+	visRootSigDesc.pParameters = &visRootParam;
+	visRootSigDesc.NumStaticSamplers = 1;
+	visRootSigDesc.pStaticSamplers = &pointSampler;
+	visRootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+
+	Microsoft::WRL::ComPtr<ID3DBlob> pVisSigBlob, pVisErrorBlob;
+	D3D12_VERSIONED_ROOT_SIGNATURE_DESC visVersionedRootSig = {};
+	visVersionedRootSig.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
+	visVersionedRootSig.Desc_1_1 = visRootSigDesc;
+	EXECUTE_AND_LOG_RETURN(D3D12SerializeVersionedRootSignature(&visVersionedRootSig, &pVisSigBlob, &pVisErrorBlob));
+	EXECUTE_AND_LOG_RETURN(pDevice->CreateRootSignature(0, pVisSigBlob->GetBufferPointer(), pVisSigBlob->GetBufferSize(), IID_PPV_ARGS(&m_visualizePSO.rootSignature)));
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC visPsoDesc = {};
+	visPsoDesc.pRootSignature = m_visualizePSO.rootSignature.Get();
+	visPsoDesc.VS = m_visualizeShader.vertexShaderByteCode;
+	visPsoDesc.PS = m_visualizeShader.pixelShaderByteCode;
+	visPsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	visPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	visPsoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	visPsoDesc.DepthStencilState.DepthEnable = FALSE; // We don't need depth testing
+	visPsoDesc.SampleMask = UINT_MAX;
+	visPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	visPsoDesc.NumRenderTargets = 1;
+	visPsoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // It will draw to the main back buffer
+	visPsoDesc.SampleDesc.Count = 1;
+
+	EXECUTE_AND_LOG_RETURN(pDevice->CreateGraphicsPipelineState(&visPsoDesc, IID_PPV_ARGS(&m_visualizePSO.PipelineState)));
 
 
 	return hr;
@@ -303,15 +352,127 @@ void DefaultScene::OnResize(UINT width, UINT height)
 {
 	if (m_pRenderEngine)
 	{
-		m_pRenderEngine->m_camera.OnResize(width, height);
+		m_camera.OnResize(width, height);
 	}
+
+	// --- Create/recreate picking resources whenever the window size changes ---
+	if (!m_pRenderEngine) return;
+	auto pDevice = m_pRenderEngine->GetDevice();
+
+	// Create Picking Texture for storing IDs
+	D3D12_RESOURCE_DESC texDesc = {};
+	texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	texDesc.Width = width;
+	texDesc.Height = height;
+	texDesc.DepthOrArraySize = 1;
+	texDesc.MipLevels = 1;
+	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; 
+	texDesc.SampleDesc.Count = 1;
+	texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+	D3D12_CLEAR_VALUE clearValue = {};
+	clearValue.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	clearValue.Color[0] = 0.0f;
+	clearValue.Color[1] = 0.0f;
+	clearValue.Color[2] = 0.0f;
+	clearValue.Color[3] = 0.0f;
+
+	D3D12_HEAP_PROPERTIES defaultHeap = {};
+	defaultHeap.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+	if (m_pickingTexture)
+	{
+		m_pRenderEngine->UnTrackResource(m_pickingTexture.Get());
+	}
+
+	EXECUTE_AND_LOG(pDevice->CreateCommittedResource(&defaultHeap, D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue, IID_PPV_ARGS(&m_pickingTexture)));
+	m_pickingTexture->SetName(L"Picking ID Texture");
+
+	m_pRenderEngine->TrackResource(m_pickingTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	// Create Render Target View for the Picking Texture
+	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+	rtvHeapDesc.NumDescriptors = 1;
+	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	EXECUTE_AND_LOG(pDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_pickingRtvHeap)));
+	m_pickingRtvHeap->SetName(L"Picking RTV Heap");
+	pDevice->CreateRenderTargetView(m_pickingTexture.Get(), nullptr, m_pickingRtvHeap->GetCPUDescriptorHandleForHeapStart());
+
+	// Create Readback Buffer to get the ID back to the CPU
+	D3D12_HEAP_PROPERTIES readbackHeap = {};
+	readbackHeap.Type = D3D12_HEAP_TYPE_READBACK;
+	D3D12_RESOURCE_DESC bufferDesc = {};
+	bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	bufferDesc.Width = 256; // We only need to read one pixel's data
+	bufferDesc.Height = 1;
+	bufferDesc.DepthOrArraySize = 1;
+	bufferDesc.MipLevels = 1;
+	bufferDesc.SampleDesc.Count = 1;
+	bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	EXECUTE_AND_LOG(pDevice->CreateCommittedResource(&readbackHeap, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_pickingReadbackBuffer)));
+	m_pickingReadbackBuffer->SetName(L"Picking Readback Buffer");
+
+
+	// visualize texture
+	if (m_pickingSrvHandle.IsValid())
+	{
+		ResourceManager::Get()->m_generalPurposeHeapAllocator.FreeSingle(m_pickingSrvHandle);
+	}
+	m_pickingSrvHandle = ResourceManager::Get()->m_generalPurposeHeapAllocator.AllocateSingle();
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Texture2D.MipLevels = 1;
+	pDevice->CreateShaderResourceView(m_pickingTexture.Get(), &srvDesc, m_pickingSrvHandle.CpuHandle);
 
 }
 
 bool DefaultScene::HandleMessage(UINT message, WPARAM wParam, LPARAM lParam)
 {
-	// Scene-specific message handling (e.g., input) would go here.
-	//following Win32 style
+	if (m_camera.HandleWindowsMessage(message, wParam, lParam))
+	{
+		OnViewChanged(); 
+		return true;
+	}
+
+	switch (message)
+	{
+	case WM_LBUTTONDOWN:
+	{
+		if (!ImGui::GetIO().WantCaptureMouse)
+		{
+			m_mouseDownPos.x = LOWORD(lParam);
+			m_mouseDownPos.y = HIWORD(lParam);
+			return true;
+		}
+		break;
+	}
+	case WM_LBUTTONUP:
+	{
+		if (!ImGui::GetIO().WantCaptureMouse)
+		{
+			int mouseUpX = LOWORD(lParam);
+			int mouseUpY = HIWORD(lParam);
+
+			int deltaX = abs(mouseUpX - m_mouseDownPos.x);
+			int deltaY = abs(mouseUpY - m_mouseDownPos.y);
+
+			const int clickThreshold = 5; 
+
+			if (deltaX < clickThreshold && deltaY < clickThreshold)
+			{
+				m_performPicking = true;
+				m_mouseClickPos.x = mouseUpX;
+				m_mouseClickPos.y = mouseUpY;
+			}
+			return true;
+		}
+		break;
+	}
+	}
 	return false;
 }
 
@@ -324,82 +485,123 @@ void DefaultScene::PopulateCommandList(void)
 {
 	ID3D12GraphicsCommandList* cmdList = m_pRenderEngine->m_commandList.Get();
 
+	// --- Pass 1: Always render the material preview (independent off-screen pass) ---
 	RenderMaterialPreview();
 
-	if (m_materialsDirty == true)
+	// --- Pass 2: Always render the picking ID buffer (off-screen pass) ---
 	{
-		// Re-uploads the entire vector of materials to the GPU buffer.
-		m_materialBuffer.Sync(m_pRenderEngine, cmdList, m_pModel->Materials.data(), m_pModel->Materials.size());
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Buffer.FirstElement = 0;
-		srvDesc.Buffer.NumElements = m_materialBuffer.Size;
-		srvDesc.Buffer.StructureByteStride = m_materialBuffer.Stride;
-		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-		// If the buffer had to be re-sized, its SRV needs to be re-created.
-		if (m_materialBuffer.GpuResourceDirty)
+		// Set render target to the picking texture
+		D3D12_CPU_DESCRIPTOR_HANDLE pickingRtvHandle = m_pickingRtvHeap->GetCPUDescriptorHandleForHeapStart();
+		D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_pRenderEngine->m_dsbHeap->GetCPUDescriptorHandleForHeapStart();
+		cmdList->OMSetRenderTargets(1, &pickingRtvHandle, FALSE, &dsvHandle);
+
+		// Clear the picking texture to black (ID 0) and clear the depth buffer for this pass
+		const float clearID[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		cmdList->ClearRenderTargetView(pickingRtvHandle, clearID, 0, nullptr);
+		cmdList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+		// Set common state (viewport and scissor must match the picking texture size)
+		cmdList->RSSetViewports(1, &m_pRenderEngine->m_viewport);
+		cmdList->RSSetScissorRects(1, &m_pRenderEngine->m_scissorRect);
+
+		ID3D12DescriptorHeap* ppHeaps[] = { ResourceManager::Get()->GetMainCbvSrvUavHeap() };
+		cmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+		// Set the picking pipeline state
+		cmdList->SetPipelineState(m_pickerPSO.PipelineState.Get());
+		cmdList->SetGraphicsRootSignature(m_finalTexturePSO.rootSignature.Get()); // The picker PSO uses a compatible root sig
+		cmdList->SetGraphicsRootDescriptorTable(0, m_constantBufferTable.GetGpuHandle());
+
+		// Update constant buffer for the picking pass
+		if (m_pModel)
 		{
-			m_pRenderEngine->GetDevice()->CreateShaderResourceView(
-				m_materialBuffer.Resource.Get(),
-				&srvDesc,
-				m_materialSrvTable.GetCpuHandle(0)
-			);
+			XMMATRIX scaleMatrix = XMMatrixScaling(m_modelScale.x, m_modelScale.y, m_modelScale.z);
+			XMMATRIX rotationMatrix = XMMatrixRotationX(XMConvertToRadians(m_rotationAngle.x)) * XMMatrixRotationY(XMConvertToRadians(m_rotationAngle.y)) * XMMatrixRotationZ(XMConvertToRadians(m_rotationAngle.z));
+			XMMATRIX translationMatrix = XMMatrixTranslation(m_modelPosition.x, m_modelPosition.y, m_modelPosition.z);
+			m_constantBufferData.worldMatrix = scaleMatrix * rotationMatrix * translationMatrix;
+			m_constantBufferData.viewMatrix = m_camera.GetView();
+			m_constantBufferData.projectionMatrix = m_camera.GetProjection();
+			memcpy(m_CBVHeapStartPointer, &m_constantBufferData, sizeof(m_constantBufferData));
+
+			RenderModel(cmdList, m_pModel, 3);
 		}
-		m_materialsDirty = false; // Reset the flag
-		OnViewChanged(); // Reset accumulation
 	}
 
-	//1. Transition the back buffer to a render target state.
-	m_pRenderEngine->TransitionResource(cmdList, m_pRenderEngine->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+	// --- Pass 3: Render to the screen (the final back buffer) ---
 
-	//2. Get current RTV and DSV handles.
+	// Set render target to the main back buffer
+	m_pRenderEngine->TransitionResource(cmdList, m_pRenderEngine->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_pRenderEngine->m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	rtvHandle.ptr += m_pRenderEngine->m_frameIndex * m_pRenderEngine->m_rtvDescriptorSize;
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_pRenderEngine->m_dsbHeap->GetCPUDescriptorHandleForHeapStart();
-
-	// Bind the render target.
 	cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
-	// Clear render target and depth stencil.
-	const float clearColor[] = { 0.48f, 0.71f, 0.91f, 1.0f };
-	cmdList->RSSetViewports(1, &m_pRenderEngine->m_viewport);
-	cmdList->RSSetScissorRects(1, &m_pRenderEngine->m_scissorRect);
-	cmdList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-	cmdList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-	// Set the main PSO and root signature for the scene.
-	cmdList->SetPipelineState(m_finalTexturePSO.PipelineState.Get());
-	cmdList->SetGraphicsRootSignature(m_finalTexturePSO.rootSignature.Get());
-
-	// Set the CBV descriptor heap.
-	ID3D12DescriptorHeap* ppHeaps[] = { ResourceManager::Get()->GetMainCbvSrvUavHeap() };
-	cmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-	cmdList->SetGraphicsRootDescriptorTable(0, m_constantBufferTable.GetGpuHandle());
-	cmdList->SetGraphicsRootDescriptorTable(1, ResourceManager::Get()->m_bindlessTextureAllocator.GetHeap()->GetGPUDescriptorHandleForHeapStart());
-	if (m_pModel && m_materialBuffer.Resource)
+	if (m_bVisualizePicking)
 	{
-		cmdList->SetGraphicsRootDescriptorTable(2, m_materialSrvTable.GetGpuHandle());
+		// --- Option A: Visualize the Picking Buffer ---
+		const float clearColor[] = { 1.0f, 0.0f, 1.0f, 1.0f }; // Clear screen to magenta for debugging
+		cmdList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+
+		m_pRenderEngine->TransitionResource(cmdList, m_pickingTexture.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+		cmdList->SetPipelineState(m_visualizePSO.PipelineState.Get());
+		cmdList->SetGraphicsRootSignature(m_visualizePSO.rootSignature.Get());
+
+		ID3D12DescriptorHeap* ppHeaps[] = { ResourceManager::Get()->GetMainCbvSrvUavHeap() };
+		cmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+		cmdList->SetGraphicsRootDescriptorTable(0, m_pickingSrvHandle.GpuHandle);
+
+		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		cmdList->DrawInstanced(3, 1, 0, 0); // Draw the full-screen triangle
+
+		m_pRenderEngine->TransitionResource(cmdList, m_pickingTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+	}
+	else
+	{
+		// --- Option B: Render the normal 3D scene ---
+		const float clearColor[] = { 0.48f, 0.71f, 0.91f, 1.0f };
+		cmdList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+		cmdList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+		cmdList->SetPipelineState(m_finalTexturePSO.PipelineState.Get());
+		cmdList->SetGraphicsRootSignature(m_finalTexturePSO.rootSignature.Get());
+
+		ID3D12DescriptorHeap* ppHeaps[] = { ResourceManager::Get()->GetMainCbvSrvUavHeap() };
+		cmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+		cmdList->SetGraphicsRootDescriptorTable(0, m_constantBufferTable.GetGpuHandle());
+		cmdList->SetGraphicsRootDescriptorTable(1, ResourceManager::Get()->m_bindlessTextureAllocator.GetHeap()->GetGPUDescriptorHandleForHeapStart());
+		if (m_pModel && m_materialBuffer.Resource)
+		{
+			cmdList->SetGraphicsRootDescriptorTable(2, m_materialSrvTable.GetGpuHandle());
+		}
+
+		RenderModel(cmdList, m_pModel, 3);
 	}
 
-	m_constantBufferData.worldMatrix = XMMatrixIdentity();
-	XMMATRIX scaleMatrix = XMMatrixScaling(m_modelScale.x, m_modelScale.y, m_modelScale.z);
-	XMMATRIX rotationMatrixX = XMMatrixRotationX(XMConvertToRadians(m_rotationAngle.x));
-	XMMATRIX rotationMatrixY = XMMatrixRotationY(XMConvertToRadians(m_rotationAngle.y));
-	XMMATRIX rotationMatrixZ = XMMatrixRotationZ(XMConvertToRadians(m_rotationAngle.z));
-	XMMATRIX rotationMatrix = rotationMatrixZ * rotationMatrixX * rotationMatrixY;
-	XMMATRIX translationMatrix = XMMatrixTranslation(m_modelPosition.x, m_modelPosition.y, m_modelPosition.z);
-	m_constantBufferData.worldMatrix = scaleMatrix * rotationMatrix * translationMatrix;
+	// --- Final Step: Schedule the GPU readback if a click happened this frame ---
+	if (m_performPicking)
+	{
+		m_pRenderEngine->TransitionResource(cmdList, m_pickingTexture.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
 
-	m_constantBufferData.viewMatrix = m_pRenderEngine->m_camera.GetView();
-	m_constantBufferData.projectionMatrix = m_pRenderEngine->m_camera.GetProjection();
-	m_constantBufferData.cameraPosition = m_pRenderEngine->m_camera.GetPosition3f();
+		D3D12_TEXTURE_COPY_LOCATION srcLoc = {};
+		srcLoc.pResource = m_pickingTexture.Get();
+		srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 
-	memcpy(m_CBVHeapStartPointer, &m_constantBufferData, sizeof(m_constantBufferData));
+		D3D12_TEXTURE_COPY_LOCATION dstLoc = {};
+		dstLoc.pResource = m_pickingReadbackBuffer.Get();
+		dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		dstLoc.PlacedFootprint.Footprint.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		dstLoc.PlacedFootprint.Footprint.Width = 1;
+		dstLoc.PlacedFootprint.Footprint.Height = 1;
+		dstLoc.PlacedFootprint.Footprint.Depth = 1;
+		dstLoc.PlacedFootprint.Footprint.RowPitch = 256;
 
-	// Set vertex buffer and draw the model.
-	RenderModel(cmdList, m_pModel, 3);
+		D3D12_BOX srcBox = { (UINT)m_mouseClickPos.x, (UINT)m_mouseClickPos.y, 0, (UINT)m_mouseClickPos.x + 1, (UINT)m_mouseClickPos.y + 1, 1 };
+		cmdList->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, &srcBox);
+
+		m_pRenderEngine->TransitionResource(cmdList, m_pickingTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+	}
+
 }
 
 void DefaultScene::RenderMaterialPreview()
@@ -448,7 +650,7 @@ void DefaultScene::RenderMaterialPreview()
 	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 	m_previewConstantBufferData.viewMatrix = XMMatrixLookAtLH(eye, at, up);
 	m_previewConstantBufferData.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(60.0f), 1.0f, 0.1f, 10.0f);
-	m_previewConstantBufferData.lightPosition = XMFLOAT4(-2.0f, 2.0f, -2.0f, 1.0f);
+	m_previewConstantBufferData.lightPosition = XMFLOAT4(-2.0f, 2.0f, -5.0f, 1.0f);
 	XMStoreFloat3(&m_previewConstantBufferData.cameraPosition, eye);
 
 	memcpy(m_previewCBVHeapStartPointer, &m_previewConstantBufferData, sizeof(m_previewConstantBufferData));
@@ -478,11 +680,50 @@ void DefaultScene::RenderMaterialPreview()
 
 void DefaultScene::Update(void)
 {
+	if (m_performPicking)
+	{
+		void* pData;
+		D3D12_RANGE readRange = { 0, sizeof(uint32_t) };
+		if (SUCCEEDED(m_pickingReadbackBuffer->Map(0, &readRange, &pData)))
+		{
+			uint32_t packedColor = *static_cast<uint32_t*>(pData);
 
+			uint8_t r = (packedColor >> 0) & 0xFF;
+			uint8_t g = (packedColor >> 8) & 0xFF;
+			uint8_t b = (packedColor >> 16) & 0xFF;
+
+			m_pickingReadbackBuffer->Unmap(0, nullptr);
+
+			uint32_t hundreds = (uint32_t)round(r / 25.0f);
+			uint32_t tens = (uint32_t)round(g / 25.0f);
+			uint32_t ones = (uint32_t)round(b / 25.0f);
+
+			uint32_t pickedId = (hundreds * 100) + (tens * 10) + ones;
+
+			if (pickedId > 0)
+			{
+				m_selectedMaterialIndex = pickedId - 1;
+			}
+			else
+			{
+				m_selectedMaterialIndex = -1;
+			}
+		}
+
+		m_performPicking = false;
+	}
 }
 
 void DefaultScene::RenderImGui()
 {
+	ImGui::Begin("Welcome to My Renddering Engine", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+	ImGui::Text("Render Time : %.3fms", m_LastRenderTime);
+	XMFLOAT3 pos = m_camera.GetPosition3f();
+	ImGui::Text("Camera Position : (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z);
+	ImGui::Text("Camera Forward Direction : (%.2f, %.2f, %.2f)", m_camera.GetForwardDirection3f().x, m_camera.GetForwardDirection3f().y, m_camera.GetForwardDirection3f().z);
+	ImGui::Checkbox("Visualize Picking Buffer", &m_bVisualizePicking);
+	ImGui::End();
+
 	ImGui::Begin("Scene One", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 	if (ImGui::Button("Load Model"))
 	{

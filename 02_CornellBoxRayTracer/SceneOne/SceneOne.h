@@ -8,6 +8,7 @@
 #include "CoreHelper Files/GpuBuffer.h"
 #include "CoreHelper Files/Helper.h"
 #include "CoreHelper Files/DescriptorTable.h"
+#include "CoreHelper Files/Camera.h"
 #include "RenderEngine Files/global.h"
 #include "../basicStructs.h"
 
@@ -34,6 +35,8 @@ public:
 	virtual void OnDestroy() override;
 
 private:
+	// Camera for rendering
+	Camera m_camera;
 
 	HRESULT InitializeResources(void);
 	HRESULT InitializeComputeResources(void);

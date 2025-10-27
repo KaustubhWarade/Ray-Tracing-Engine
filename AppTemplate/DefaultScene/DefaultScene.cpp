@@ -15,6 +15,9 @@ using namespace DirectX;
 
 HRESULT DefaultScene::Initialize(RenderEngine* pRenderEngine)
 {
+	void CreateCubeMesh(float);
+
+
 	m_pRenderEngine = pRenderEngine;
 	auto pDevice = m_pRenderEngine->GetDevice();
 	HRESULT hr = S_OK;
@@ -71,23 +74,12 @@ HRESULT DefaultScene::Initialize(RenderEngine* pRenderEngine)
 	// 3. Create Pipeline State Object (PSO)
 
 	// Define the vertex input layout to match the Vertex_Pos_Tex struct.
-	D3D12_INPUT_ELEMENT_DESC d3dInputElementDesc[2];
-	ZeroMemory(&d3dInputElementDesc, sizeof(D3D12_INPUT_ELEMENT_DESC) * _ARRAYSIZE(d3dInputElementDesc));
-	d3dInputElementDesc[0].SemanticName = "POSITION";
-	d3dInputElementDesc[0].SemanticIndex = 0;
-	d3dInputElementDesc[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;
-	d3dInputElementDesc[0].InputSlot = 0;
-	d3dInputElementDesc[0].AlignedByteOffset = 0;
-	d3dInputElementDesc[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-	d3dInputElementDesc[0].InstanceDataStepRate = 0;
+	D3D12_INPUT_ELEMENT_DESC d3dInputElementDesc[4] = {};
+	d3dInputElementDesc[0] = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	d3dInputElementDesc[1] = { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	d3dInputElementDesc[2] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	d3dInputElementDesc[3] = { "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
-	d3dInputElementDesc[1].SemanticName = "TEXCOORD";
-	d3dInputElementDesc[1].SemanticIndex = 0;
-	d3dInputElementDesc[1].Format = DXGI_FORMAT_R32G32_FLOAT;
-	d3dInputElementDesc[1].InputSlot = 0;
-	d3dInputElementDesc[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
-	d3dInputElementDesc[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-	d3dInputElementDesc[1].InstanceDataStepRate = 0;
 
 	// Create standard rasterizer, depth-stencil, and blend states via helper functions.
 	D3D12_RASTERIZER_DESC rasterizerDesc = {};
@@ -107,7 +99,7 @@ HRESULT DefaultScene::Initialize(RenderEngine* pRenderEngine)
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 	createPipelineStateDesc(psoDesc,
 		d3dInputElementDesc,
-		2,
+		_countof(d3dInputElementDesc),
 		m_finalTexturePSO.rootSignature.Get(),
 		m_finalShader,
 		rasterizerDesc,
@@ -116,7 +108,7 @@ HRESULT DefaultScene::Initialize(RenderEngine* pRenderEngine)
 
 	EXECUTE_AND_LOG_RETURN(m_pRenderEngine->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_finalTexturePSO.PipelineState)));
 
-	m_DescriptorHeapStart = m_pRenderEngine->m_cbvSrvUavAllocator.Allocate(1);
+	m_constantBufferTable = ResourceManager::Get()->m_generalPurposeHeapAllocator.AllocateTable(1);
 
 	{
 		// Constant buffers must be 256-byte aligned.
@@ -150,7 +142,7 @@ HRESULT DefaultScene::Initialize(RenderEngine* pRenderEngine)
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 		cbvDesc.BufferLocation = m_constantBufferResource->GetGPUVirtualAddress();
 		cbvDesc.SizeInBytes = (sizeof(CBUFFER) + 255) & ~255;
-		m_pRenderEngine->GetDevice()->CreateConstantBufferView(&cbvDesc, m_DescriptorHeapStart.CpuHandle);
+		m_pRenderEngine->GetDevice()->CreateConstantBufferView(&cbvDesc, m_constantBufferTable.GetCpuHandle(0));
 
 		// Map the buffer for persistent CPU access; we won't unmap it.
 		D3D12_RANGE readRange;
@@ -160,61 +152,68 @@ HRESULT DefaultScene::Initialize(RenderEngine* pRenderEngine)
 		ZeroMemory(&m_constantBufferData, sizeof(CBUFFER));
 		memcpy(m_CBVHeapStartPointer, &m_constantBufferData, sizeof(m_constantBufferData));
 	}
-	// 5. Create Cube Geometry
-	{
 
-		const Vertex_Pos_Tex cube_position[] = {
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f)}), // top-left of front
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f)}), // top-right of front
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f)}), // bottom-left of front
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f)}), // bottom-left of front
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f)}), // top-right of front
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f)}), // bottom-right of fron
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f)}), // top-left of right
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 1.0f)}), // top-right of right
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f)}), // bottom-left of right
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f)}), // bottom-left of right
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 1.0f)}), // top-right of right
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT2(1.0f, 0.0f)}), // bottom-right of right
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT2(0.0f, 1.0f)}), // top-left of back
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 1.0f)}), // top-right of back
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 0.0f)}), // bottom-left of back
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 0.0f)}), // bottom-left of back
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 1.0f)}), // top-right of back
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT2(1.0f, 0.0f)}), // bottom-right of back
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT2(0.0f, 1.0f)}), // top-left of left
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f)}), // top-right of left
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 0.0f)}), // bottom-left of left
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 0.0f)}), // bottom-left of left
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f)}), // top-right of left
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f)}), // bottom-right of left
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT2(0.0f, 1.0f)}), // top-left of top
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 1.0f)}), // top-right of top
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f)}), // bottom-left of top
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f)}), // bottom-left of top
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 1.0f)}), // top-right of top
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f)}), // bottom-right of to
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f)}), // top-left of bottom
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f)}), // top-right of bottom
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 0.0f)}), // bottom-left of bottom
-				Vertex_Pos_Tex({XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 0.0f)}), // bottom-left of bottom
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f)}), // top-right of bottom
-				Vertex_Pos_Tex({XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT2(1.0f, 0.0f)}), // bottom-right of bottom
-		};
-		// Create the GPU vertex buffer and upload vertex data.
-		createGeometryVertexResource(m_pRenderEngine->GetDevice(), m_pRenderEngine->m_commandList, m_cube, cube_position, sizeof(cube_position));
-		m_cube.VertexBufferByteSize = sizeof(cube_position);
-		m_cube.VertexByteStride = sizeof(Vertex_Pos_Tex);
-	}
+	CreateCubeMesh(2.0f);
+	m_pCubeModel = ResourceManager::Get()->GetModel("cube");
 	return hr;
 }
+
+void CreateCubeMesh(float size)
+{
+	float s = size / 2.0f;
+	ModelVertex vertices[] = {
+		// Front face
+		{ {-s, -s, -s}, {0, 0, -1}, {0, 1}, {1, 0, 0, 1} },
+		{ {-s,  s, -s}, {0, 0, -1}, {0, 0}, {1, 0, 0, 1} },
+		{ { s,  s, -s}, {0, 0, -1}, {1, 0}, {1, 0, 0, 1} },
+		{ { s, -s, -s}, {0, 0, -1}, {1, 1}, {1, 0, 0, 1} },
+		// Back face
+		{ {-s, -s,  s}, {0, 0, 1}, {1, 1}, {-1, 0, 0, 1} },
+		{ { s, -s,  s}, {0, 0, 1}, {0, 1}, {-1, 0, 0, 1} },
+		{ { s,  s,  s}, {0, 0, 1}, {0, 0}, {-1, 0, 0, 1} },
+		{ {-s,  s,  s}, {0, 0, 1}, {1, 0}, {-1, 0, 0, 1} },
+		// Top face
+		{ {-s,  s, -s}, {0, 1, 0}, {0, 1}, {1, 0, 0, 1} },
+		{ {-s,  s,  s}, {0, 1, 0}, {0, 0}, {1, 0, 0, 1} },
+		{ { s,  s,  s}, {0, 1, 0}, {1, 0}, {1, 0, 0, 1} },
+		{ { s,  s, -s}, {0, 1, 0}, {1, 1}, {1, 0, 0, 1} },
+		// Bottom face
+		{ {-s, -s, -s}, {0, -1, 0}, {1, 1}, {-1, 0, 0, 1} },
+		{ { s, -s, -s}, {0, -1, 0}, {0, 1}, {-1, 0, 0, 1} },
+		{ { s, -s,  s}, {0, -1, 0}, {0, 0}, {-1, 0, 0, 1} },
+		{ {-s, -s,  s}, {0, -1, 0}, {1, 0}, {-1, 0, 0, 1} },
+		// Right face
+		{ { s, -s, -s}, {1, 0, 0}, {0, 1}, {0, 0, 1, 1} },
+		{ { s,  s, -s}, {1, 0, 0}, {0, 0}, {0, 0, 1, 1} },
+		{ { s,  s,  s}, {1, 0, 0}, {1, 0}, {0, 0, 1, 1} },
+		{ { s, -s,  s}, {1, 0, 0}, {1, 1}, {0, 0, 1, 1} },
+		// Left face
+		{ {-s, -s, -s}, {-1, 0, 0}, {1, 1}, {0, 0, -1, 1} },
+		{ {-s, -s,  s}, {-1, 0, 0}, {0, 1}, {0, 0, -1, 1} },
+		{ {-s,  s,  s}, {-1, 0, 0}, {0, 0}, {0, 0, -1, 1} },
+		{ {-s,  s, -s}, {-1, 0, 0}, {1, 0}, {0, 0, -1, 1} },
+	};
+	uint32_t indices[] = {
+		0, 1, 2, 0, 2, 3, // front
+		4, 5, 6, 4, 6, 7, // back
+		8, 9, 10, 8, 10, 11, // top
+		12, 13, 14, 12, 14, 15, // bottom
+		16, 17, 18, 16, 18, 19, // right
+		20, 21, 22, 20, 22, 23, // left
+	};
+
+	ResourceManager::Get()->CreateModel("cube",
+		vertices, sizeof(vertices), sizeof(ModelVertex),
+		indices, sizeof(indices), DXGI_FORMAT_R32_UINT);
+}
+
 
 
 void DefaultScene::OnResize(UINT width, UINT height)
 {
 	if (m_pRenderEngine)
 	{
-		m_pRenderEngine->m_camera.OnResize(width, height);
+		m_camera.OnResize(width, height);
 	}
 
 }
@@ -223,6 +222,13 @@ bool DefaultScene::HandleMessage(UINT message, WPARAM wParam, LPARAM lParam)
 {
 	// Scene-specific message handling (e.g., input) would go here.
 	//following Win32 style
+
+	if (m_camera.HandleWindowsMessage(message, wParam, lParam))
+	{
+		OnViewChanged();
+		return true;
+	}
+
 	return false;
 }
 
@@ -234,9 +240,6 @@ void DefaultScene::OnViewChanged()
 void DefaultScene::PopulateCommandList(void)
 {
 	ID3D12GraphicsCommandList* cmdList = m_pRenderEngine->m_commandList.Get();
-	UINT width = m_pRenderEngine->m_viewport.Width;
-	UINT height = m_pRenderEngine->m_viewport.Height;
-	UINT descriptorSize = m_pRenderEngine->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	//1. Transition the back buffer to a render target state.
 	m_pRenderEngine->TransitionResource(cmdList, m_pRenderEngine->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -245,7 +248,7 @@ void DefaultScene::PopulateCommandList(void)
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_pRenderEngine->m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	rtvHandle.ptr += m_pRenderEngine->m_frameIndex * m_pRenderEngine->m_rtvDescriptorSize;
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_pRenderEngine->m_dsbHeap->GetCPUDescriptorHandleForHeapStart();
-
+	
 	// Bind the render target.
 	cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
@@ -259,10 +262,10 @@ void DefaultScene::PopulateCommandList(void)
 	cmdList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	// Set the CBV descriptor heap.
-	ID3D12DescriptorHeap* ppHeaps[] = { m_pRenderEngine->GetCbvSrvUavAllocator().GetHeap()};
+	ID3D12DescriptorHeap* ppHeaps[] = { ResourceManager::Get()->GetMainCbvSrvUavHeap() };
 	cmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
-	cmdList->SetGraphicsRootDescriptorTable(0, m_DescriptorHeapStart.GpuHandle);
+	cmdList->SetGraphicsRootDescriptorTable(0, m_constantBufferTable.GetGpuHandle());
 
 	m_constantBufferData.worldMatrix = XMMatrixIdentity();
 	XMMATRIX rotationMatrixX = XMMatrixRotationX(XMConvertToRadians(m_rotationAngle));
@@ -270,25 +273,30 @@ void DefaultScene::PopulateCommandList(void)
 	XMMATRIX rotationMatrixZ = XMMatrixRotationZ(XMConvertToRadians(m_rotationAngle));
 	m_constantBufferData.worldMatrix = rotationMatrixX * rotationMatrixY * rotationMatrixZ;
 	
-	m_constantBufferData.viewMatrix = m_pRenderEngine->m_camera.GetView();
-	m_constantBufferData.projectionMatrix = m_pRenderEngine->m_camera.GetProjection();
+	m_constantBufferData.viewMatrix = m_camera.GetView();
+	m_constantBufferData.projectionMatrix = m_camera.GetProjection();
 	memcpy(m_CBVHeapStartPointer, &m_constantBufferData, sizeof(m_constantBufferData));
 
-	// Set vertex buffer and draw the cube.
-	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferView = m_cube.VertexBufferView();
-	cmdList->IASetVertexBuffers(0, 1, &vertexBufferView);
-	cmdList->DrawInstanced(36, 1, 0, 0);
+	// 6. Render the model
+	RenderModel(cmdList, m_pCubeModel);
 }
 
 void DefaultScene::Update(void)
 {
 	// Application update call
-	m_rotationAngle += 0.05f;
+	m_rotationAngle += 0.2f;
 }
 
 void DefaultScene::RenderImGui()
 {
+	ImGui::Begin("Welcome to My Renddering Engine", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+	ImGui::Text("Render Time : %.3fms", m_LastRenderTime);
+	XMFLOAT3 pos = m_camera.GetPosition3f();
+	ImGui::Text("Camera Position : (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z);
+	ImGui::Text("Camera Forward Direction : (%.2f, %.2f, %.2f)", m_camera.GetForwardDirection3f().x, m_camera.GetForwardDirection3f().y, m_camera.GetForwardDirection3f().z);
+
+	ImGui::End();
+
 	ImGui::Begin("Scene One", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
 

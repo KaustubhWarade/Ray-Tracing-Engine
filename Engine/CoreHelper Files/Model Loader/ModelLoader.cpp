@@ -552,3 +552,10 @@ HRESULT ModelLoader::LoadGLTF(ResourceManager* resourceManager, const std::strin
 
     return S_OK;
 }
+
+
+HRESULT ModelLoader::LoadPBRT(ResourceManager* resourceManager, const std::string& filename, Model& outModel)
+{
+
+    return S_OK;
+}

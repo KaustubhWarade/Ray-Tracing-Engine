@@ -510,7 +510,7 @@ void DefaultScene::PopulateCommandList(void)
 		// Set the picking pipeline state
 		cmdList->SetPipelineState(m_pickerPSO.PipelineState.Get());
 		cmdList->SetGraphicsRootSignature(m_finalTexturePSO.rootSignature.Get()); // The picker PSO uses a compatible root sig
-		cmdList->SetGraphicsRootDescriptorTable(0, m_constantBufferTable.GetGpuHandle());
+		cmdList->SetGraphicsRootDescriptorTable(0, m_constantBufferTable.GetGpuHandle(0));
 
 		// Update constant buffer for the picking pass
 		if (m_pModel)
@@ -568,11 +568,11 @@ void DefaultScene::PopulateCommandList(void)
 
 		ID3D12DescriptorHeap* ppHeaps[] = { ResourceManager::Get()->GetMainCbvSrvUavHeap() };
 		cmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-		cmdList->SetGraphicsRootDescriptorTable(0, m_constantBufferTable.GetGpuHandle());
+		cmdList->SetGraphicsRootDescriptorTable(0, m_constantBufferTable.GetGpuHandle(0));
 		cmdList->SetGraphicsRootDescriptorTable(1, ResourceManager::Get()->m_bindlessTextureAllocator.GetHeap()->GetGPUDescriptorHandleForHeapStart());
 		if (m_pModel && m_materialBuffer.Resource)
 		{
-			cmdList->SetGraphicsRootDescriptorTable(2, m_materialSrvTable.GetGpuHandle());
+			cmdList->SetGraphicsRootDescriptorTable(2, m_materialSrvTable.GetGpuHandle(0));
 		}
 
 		RenderModel(cmdList, m_pModel, 3);
@@ -656,11 +656,11 @@ void DefaultScene::RenderMaterialPreview()
 	memcpy(m_previewCBVHeapStartPointer, &m_previewConstantBufferData, sizeof(m_previewConstantBufferData));
 
 	// 5. Set root arguments
-	cmdList->SetGraphicsRootDescriptorTable(0, m_previewConstantBufferTable.GetGpuHandle());
+	cmdList->SetGraphicsRootDescriptorTable(0, m_previewConstantBufferTable.GetGpuHandle(0));
 	cmdList->SetGraphicsRootDescriptorTable(1, ResourceManager::Get()->m_bindlessTextureAllocator.GetHeap()->GetGPUDescriptorHandleForHeapStart());
 	if (m_pModel && m_materialBuffer.Resource)
 	{
-		cmdList->SetGraphicsRootDescriptorTable(2, m_materialSrvTable.GetGpuHandle());
+		cmdList->SetGraphicsRootDescriptorTable(2, m_materialSrvTable.GetGpuHandle(0));
 	}
 	// IMPORTANT: Set the root constant to the selected material index
 	cmdList->SetGraphicsRoot32BitConstant(3, m_selectedMaterialIndex, 0);

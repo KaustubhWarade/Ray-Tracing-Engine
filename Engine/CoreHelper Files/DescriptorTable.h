@@ -13,7 +13,7 @@ public:
     D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle(UINT slot) const;
 
     // Returns the GPU handle for the start of the table (for Set...RootDescriptorTable).
-    D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle() const { return m_baseGpuHandle; }
+    D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(UINT slot = 0) const;
 
 private:
     // Only the allocator that created this table can set its members.

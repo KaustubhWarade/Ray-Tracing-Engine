@@ -127,6 +127,8 @@ public:
 
     HRESULT LoadGLTF(ResourceManager* resourceManager, const std::string& filename, Model& outModel);
 
+    HRESULT LoadPBRT(ResourceManager* resourceManager, const std::string& filename, Model& outModel);
+
 private:
     Texture* LoadTexture(
         const tinygltf::Model& gltfModel,
